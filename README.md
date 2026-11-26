@@ -82,8 +82,9 @@ contracts/            Foundry project: QoreGuardTreasury.sol, mocks, 23 tests
 agent/qoreguard/      Python package: chain, evm, treasury ABI, planner, agent, CLI
 demo/                 mandate.json, signed invoices, journal (evidence)
 scripts/              key bootstrap, invoice signing, demo runner
-docs/                 architecture, threat model, submission copy
+docs/                 evidence, threat model, rubric map, submission copy
 AI_USAGE.md           how this was built with AI (Best AI-Native Build entry)
+docs/RUBRIC.md        where each of the five jury criteria is satisfied
 ```
 
 ## Quickstart (testnet only, no funds of value)
