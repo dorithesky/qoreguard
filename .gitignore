@@ -1,0 +1,16 @@
+# secrets — never commit key material
+.keys/
+*.env
+.env
+!config/*.env.example
+
+# build artifacts
+node_modules/
+out/
+cache/
+lib/
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+broadcast/

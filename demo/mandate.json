@@ -1,0 +1,28 @@
+{
+  "notes": "Monthly vendor run for a small studio treasury. The agent may pay the vendors below, from the owner's account, and nothing else. Amounts are in uqor (1 QOR = 1,000,000 uqor). Invoices arrive signed by the vendor's invoice key and are read from demo/invoices.json.",
+  "treasury_daily_cap_uqor": 1500000,
+  "agent_per_tx_cap_uqor": 600000,
+  "agent_daily_cap_uqor": 1500000,
+  "agent_link_hours": 24,
+  "vendors": [
+    {
+      "id": 1,
+      "label": "cloud-hosting",
+      "payee": "0xcc70ef1e107275e4b19caa93e3df2157eb19c5ba",
+      "invoice_pubkey": "d25a14eb5aa5c6d97cafeb8b53fe0b3ddf753eb887770158263d8661531fcae2",
+      "per_tx_cap_uqor": 200000,
+      "daily_cap_uqor": 1000000,
+      "note": "Primary hosting invoice, monthly."
+    },
+    {
+      "id": 2,
+      "label": "api-credits",
+      "payee": "0x9b639ca7c766a30afa0351fad6ea1f87fef92df5",
+      "invoice_pubkey": "3ef5cf095faf81e195343fe669f9b36079f35b2be6d22933fad60c37929841d4",
+      "per_tx_cap_uqor": 300000,
+      "daily_cap_uqor": 600000,
+      "note": "Model/API credits, prepaid."
+    }
+  ],
+  "invoices_file": "demo/invoices.json"
+}

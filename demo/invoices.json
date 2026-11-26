@@ -1,0 +1,68 @@
+{
+  "invoices": [
+    {
+      "id": "INV-1001",
+      "vendor": "cloud-hosting",
+      "amount_uqor": 150000,
+      "memo": "November cloud hosting",
+      "due": "2026-11-30",
+      "signer_pubkey": "d25a14eb5aa5c6d97cafeb8b53fe0b3ddf753eb887770158263d8661531fcae2",
+      "signature": "6bf8468e406036f942f264b9933b6c6f2dd788c5160504819d3d5115adc78d44b406e3eed44cd525c1102da47815351a95a114edbd8bf172f5f8807536379b0f"
+    },
+    {
+      "id": "INV-1002",
+      "vendor": "cloud-hosting",
+      "amount_uqor": 500000,
+      "memo": "GPU burst overage above the agreed cap",
+      "due": "2026-11-30",
+      "signer_pubkey": "d25a14eb5aa5c6d97cafeb8b53fe0b3ddf753eb887770158263d8661531fcae2",
+      "signature": "93c50f81ede132fafdaa3e0fac1142bae2a2a2e0134c03869eb525c7ec442feb574db78651065ac3ee8efc35f1e61c274a0edb2cb5f0dc4fa5cd555281a9950b"
+    },
+    {
+      "id": "INV-1003",
+      "vendor": "api-credits",
+      "amount_uqor": 700000,
+      "memo": "Prepaid API credits, annual commitment",
+      "due": "2026-12-01",
+      "signer_pubkey": "3ef5cf095faf81e195343fe669f9b36079f35b2be6d22933fad60c37929841d4",
+      "signature": "c1e09ec4804aa44338aefbdd7e71a1a9a618ee2c14f702155886214715b09505ecf331401bafe2d0a8ec856c68512921f3165756e87fd982f911ecc06dc26704"
+    },
+    {
+      "id": "INV-1004",
+      "vendor": "api-credits",
+      "amount_uqor": 250000,
+      "memo": "Monthly API plan",
+      "due": "2026-12-01",
+      "signer_pubkey": "3ef5cf095faf81e195343fe669f9b36079f35b2be6d22933fad60c37929841d4",
+      "signature": "7aedc1f86022b77dab7f88ed402e7484ad83170dd728b68574244e895139d90e3725e4fbd2d8f546fc6fd7a0a6298c2a9957687c60111661a4cf0f09c943980f"
+    },
+    {
+      "id": "INV-1006",
+      "vendor": "cloud-hosting",
+      "amount_uqor": 100000,
+      "memo": "Monitoring add-on",
+      "due": "2026-12-02",
+      "signer_pubkey": "d25a14eb5aa5c6d97cafeb8b53fe0b3ddf753eb887770158263d8661531fcae2",
+      "signature": "c7de6ca01aae1453ea88f31db5a4374b4bdcaf6df84bff01af5f8b677e42d405efabd2211af3f0ea005e94b76a63305803a158c8ee157f45ae103575ef5e030d"
+    },
+    {
+      "id": "INV-1007",
+      "vendor": "api-credits",
+      "amount_uqor": 400000,
+      "memo": "Second API top-up on the same day",
+      "due": "2026-12-02",
+      "signer_pubkey": "3ef5cf095faf81e195343fe669f9b36079f35b2be6d22933fad60c37929841d4",
+      "signature": "7e5b5dd58411ac88aa5031a510711738d536bda8eca51376118d55f7172e01d845b4953ab3af01c7cb4c10d94b1e354e16a74cf9b9570870a5e1c28088ece204"
+    },
+    {
+      "id": "INV-1008",
+      "vendor": "cloud-hosting",
+      "amount_uqor": 100000,
+      "memo": "Late fee, amount adjusted after signing",
+      "due": "2026-12-02",
+      "tamper_note": "signed for 10000 uqor, this copy says 100000 uqor",
+      "signer_pubkey": "d25a14eb5aa5c6d97cafeb8b53fe0b3ddf753eb887770158263d8661531fcae2",
+      "signature": "1f43e92e16621d7613053d638d7f7e335815169940f3fb5a4fb872dfffcee93073bf63611bbf5d8c3e5c9d5a91113118b2afb8a08b6c8d91302eae2dd1971007"
+    }
+  ]
+}
