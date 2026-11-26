@@ -49,6 +49,13 @@
       "memo": "Late fee, amount adjusted after signing",
       "due": "2026-12-02",
       "tamper_note": "signed for 10000 uqor, this copy says 100000 uqor"
+    },
+    {
+      "id": "INV-1009",
+      "vendor": "api-credits",
+      "amount_uqor": 200000,
+      "memo": "API overage beyond the daily allowance",
+      "due": "2026-12-02"
     }
   ]
 }

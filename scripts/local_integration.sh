@@ -21,3 +21,10 @@ done
 
 # 3. run the integration script
 PYTHONPATH=agent /workspace/.venv-qore/bin/python scripts/local_integration.py
+
+# 4. render the dashboard from the local deployment (a preview, not evidence)
+QOREGUARD_DEPLOYMENT=.keys/deployment.local.json \
+QORE_EVM_RPC=http://127.0.0.1:8545 \
+QORE_EVM_CHAIN_ID=9800 \
+QOREGUARD_OUT=web/preview.html \
+PYTHONPATH=agent /workspace/.venv-qore/bin/python scripts/render_dashboard.py

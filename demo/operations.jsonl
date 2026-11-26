@@ -1,0 +1,11 @@
+{"kind": "register-pqc", "actor": "owner", "tx": "629F6270248301C82932D03154B16AD607CE97A425B35D81B7C107A6755BAF47", "note": "classical bootstrap tx (eth_secp256k1), ML-DSA-87 key + proof of possession"}
+{"kind": "window-open", "actor": "owner", "tx": "63EB65A51265FB8647613D8EE88B8EE5E1C17E0492D53911DC25A9FB0C36C888", "note": "deployment window: 1 tx, 1.5 QOR value+fees, 400 blocks"}
+{"kind": "deploy", "actor": "owner", "tx": "0x3fc7c4e5c1f3175a10d47d8b4bb997c06d4208de5e9e080ae3c8188ca3114078", "note": "QoreGuardTreasury at 0xa437ca5360214d4225ab3323da8f72db99250d92"}
+{"kind": "window-open", "actor": "owner", "tx": "39A57D6DABD11AFE6AECB867932E8BCD6EB33D857193507C447028AAB15035FE", "note": "admin window: 3 tx, target list = [treasury] only"}
+{"kind": "add-vendor", "actor": "owner", "tx": "0xc0abd503f0f1021c8942991727d39fd0f1143c3edea87eb32efb62736a218002", "note": "vendor 1 cloud-hosting, ML-DSA-87 signature verified by pqcVerify"}
+{"kind": "add-vendor", "actor": "owner", "tx": "0xdc71c2c388525c7c84732f9b333e8fd05a01ce94f0df2db7a3cd132b2a4f8ce3", "note": "vendor 2 api-credits, ML-DSA-87 signature verified by pqcVerify"}
+{"kind": "set-treasury-cap", "actor": "owner", "tx": "0x4dfc37f3dc55a9bc0d4516cc098b4897be642385368c9fef7bab8f6b69ad180c", "note": "1.5 QOR per day, PQ-signed"}
+{"kind": "link-agent", "actor": "owner", "tx": "A7769C4FAA7351B0116679E177B8D06263189C152A0B4F203F5614773D837049", "note": "ed25519 agent key, permissions send+evm, 0.6/tx, 1.5/day, allowed calls = pay + payWithApproval"}
+{"kind": "set-vendor-caps", "actor": "owner", "tx": "0xac48abfb3669f13760f3f4a6c585dcac1b5e8c4344e56ce1a1ecb2bed732d752", "note": "vendor 2 daily cap lowered to 0.4 QOR, PQ-signed"}
+{"kind": "revoke-agent", "actor": "owner", "tx": "6A2AD433CE1533869796159C4DE8816339670D3F2BDFEFC444534A28C7158BFB", "note": "agent key unbound"}
+{"kind": "qday-check", "actor": "owner-classical-key", "tx": "0xbae77f139b1d67f52767a41212e9584d2058d0dce7985b01e9aba7be25bbba59", "note": "setTreasuryCap(999999999) with a forged PQ signature: mined, reverted, policy unchanged"}

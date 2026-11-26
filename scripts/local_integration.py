@@ -178,6 +178,11 @@ def main() -> int:
     except Exception as exc:
         check("reused approval refused", True, type(exc).__name__)
 
+    # 7. leave a record the dashboard can render without a testnet
+    (ROOT / ".keys").mkdir(exist_ok=True)
+    (ROOT / ".keys" / "deployment.local.json").write_text(
+        json.dumps({"contract": contract, "tx": "local-anvil", "block": 0}, indent=2)
+    )
     print()
     if failures:
         print(f"FAILED: {len(failures)} check(s): {failures}")

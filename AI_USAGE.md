@@ -66,11 +66,21 @@ holding the keys that matter.
 
 Concrete failures from this build, kept because they are the honest part:
 
-- **Public key ↔ address mismatch.** It first assumed a chain account's `0x`
-  form equals the keccak-derived Ethereum address. It does not: QoreChain derives
-  the 20-byte identity from `ripemd160(sha256(compressed_pubkey))`. The AI found
-  this by comparing `cast wallet address` with the bech32 hex, and switched the
-  EVM path to read nonces from the chain instead of guessing locally.
+- **Public key ↔ address mismatch (the expensive one).** It built the whole
+  treasury around a Cosmos-native owner account, then discovered on testnet that
+  the EVM lane attributes a transaction to the *keccak* address of the signing
+  key: the native account's `0x` form read a balance of 95 QOR while its own
+  signed EVM transaction was refused with `sender balance < tx cost (0 < …)`.
+  The fix was structural, not cosmetic — the owner has to be an `eth_secp256k1`
+  (unified) account, and native transactions from it need `sign_hybrid_eth`
+  instead of `build_hybrid_tx`. The AI rebuilt the account layer, migrated the
+  funded balance, and documented the trap in the README so the next builder does
+  not pay for it.
+- **Broadcast mode.** `BROADCAST_MODE_BLOCK` is not served by the public REST
+  endpoint (`unsupported return type`), so relayed payments are broadcast in
+  `sync` mode and the execution result is read back from the delivered
+  transaction. Without that, a refused payment inside a `code: 0` transaction
+  would look like a success.
 - **Checksummed precompile literals.** Solidity refuses `0x…0A01` with a mixed-case
   checksum error; the docs warn about it, the AI hit it anyway, and now writes
   every precompile address lowercase.
@@ -78,6 +88,11 @@ Concrete failures from this build, kept because they are the honest part:
   external *view* call in the same expression, so the test called the contract as
   the test contract and "passed" a different assertion path. Fixed by
   pre-computing every getter before `vm.prank`.
+- **A gas parameter that hid a real refusal.** The first post-quantum approval
+  attempt failed with an out-of-gas message from the EVM lane: the signed
+  `gas_limit` has to fit inside the gas the enclosing transaction provisions, and
+  a 4.6 KB signature leaves less room than expected. The two retries stay in
+  `demo/journal.jsonl` and are labelled as operational retries, not refusals.
 - **A mock that did not bind the message.** The first `MockPQCVerify` accepted any
   signature with a magic byte, which made "an approval for 0.5 QOR cannot pay
   0.9 QOR" untestable. Rewritten to `0x01 || message`, so the mock also binds.

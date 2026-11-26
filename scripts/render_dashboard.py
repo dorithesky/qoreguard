@@ -10,6 +10,7 @@ inlined: no server, no build step, no network calls when opened.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,8 +26,10 @@ from qoreguard.chain import Chain  # noqa: E402
 from qoreguard.config import settings  # noqa: E402
 from qoreguard.evm import Evm  # noqa: E402
 
-DEPLOYMENT = ROOT / ".keys" / "deployment.json"
-OUT = ROOT / "web" / "index.html"
+DEPLOYMENT = Path(os.environ.get("QOREGUARD_DEPLOYMENT", str(ROOT / ".keys" / "deployment.json")))
+JOURNAL = Path(os.environ.get("QOREGUARD_JOURNAL", str(ROOT / "demo" / "journal.jsonl")))
+INVOICES = Path(os.environ.get("QOREGUARD_INVOICES", str(ROOT / "demo" / "invoices.json")))
+OUT = Path(os.environ.get("QOREGUARD_OUT", str(ROOT / "web" / "index.html")))
 
 EV_VENDOR_PAID = keccak(text="VendorPaid(uint256,address,uint256,bytes32,uint256,uint256)")
 EV_VENDOR_PAID_APPROVED = keccak(text="VendorPaidWithApproval(uint256,address,uint256,bytes32,uint256,uint256)")
@@ -96,42 +99,39 @@ def main() -> int:
             }
         )
 
-    payments = []
-    for log in fetch_logs(evm, contract, EV_VENDOR_PAID, from_block):
-        vid, payee, amount, memo, day, day_after = abi_decode(
-            ["uint256", "address", "uint256", "bytes32", "uint256", "uint256"], bytes.fromhex(log["data"][2:])
-        )
-        payments.append(
-            {
-                "tx": log["transactionHash"],
-                "block": int(log["blockNumber"], 16),
-                "vendor": TOKEN_SYMBOLS.get(vid, str(vid)),
-                "payee": payee,
-                "amount": amount,
-                "memo": "0x" + memo.hex()[:16],
-                "kind": "agent",
-            }
-        )
-    for log in fetch_logs(evm, contract, EV_VENDOR_PAID_APPROVED, from_block):
-        vid, payee, amount, memo, approval_nonce, day = abi_decode(
-            ["uint256", "address", "uint256", "bytes32", "uint256", "uint256"], bytes.fromhex(log["data"][2:])
-        )
-        payments.append(
-            {
-                "tx": log["transactionHash"],
-                "block": int(log["blockNumber"], 16),
-                "vendor": TOKEN_SYMBOLS.get(vid, str(vid)),
-                "payee": payee,
-                "amount": amount,
-                "memo": "0x" + memo.hex()[:16],
-                "kind": f"PQ-approved #{approval_nonce}",
-            }
-        )
-    payments.sort(key=lambda p: p["block"])
-
-    journal_path = ROOT / "demo" / "journal.jsonl"
+    journal_path = JOURNAL
     journal = [json.loads(l) for l in journal_path.read_text().splitlines()] if journal_path.exists() else []
-    refusals = [
+    payments = []
+    for e in journal:
+        if not e.get("chain_success"):
+            continue
+        payments.append(
+            {
+                "tx": e.get("tx_hash") or "",
+                "block": 0,
+                "vendor": e.get("vendor_label", ""),
+                "amount": e.get("amount_uqor", 0),
+                "memo": (e.get("onchain_memo") or "")[:24],
+                "kind": "PQ-approved" if e.get("action") == "payWithApproval" else "agent",
+                "invoice": e.get("invoice", ""),
+            }
+        )
+
+    admin_events = []
+    for log in fetch_logs(evm, contract, EV_POLICY_UPDATED, from_block):
+        action = bytes.fromhex(log["topics"][1][2:])
+        payload, nonce = abi_decode(["bytes32", "uint256"], bytes.fromhex(log["data"][2:]))
+        admin_events.append(
+            {
+                "tx": log["transactionHash"],
+                "action": "0x" + action.hex()[:12],
+                "nonce": nonce,
+                "block": int(log["blockNumber"], 16),
+            }
+        )
+    admin_events.sort(key=lambda a: a["block"])
+
+    all_refusals = [
         {
             "invoice": e.get("invoice"),
             "amount": e.get("amount_uqor"),
@@ -141,8 +141,13 @@ def main() -> int:
         for e in journal
         if e.get("chain_success") is False
     ]
+    # A refusal that names the contract's own error is a policy refusal; one that
+    # names gas is an operational retry by the operator, kept in the journal but
+    # not presented as the product's behaviour.
+    refusals = [r for r in all_refusals if "gas" not in r["reason"].lower()]
+    retries = len(all_refusals) - len(refusals)
 
-    invoices_path = ROOT / "demo" / "invoices.json"
+    invoices_path = INVOICES
     invoices = json.loads(invoices_path.read_text())["invoices"] if invoices_path.exists() else []
 
     w = chain.evm_window(owner_account.replace("0x", "qor1")) if False else None
@@ -159,9 +164,16 @@ def main() -> int:
         nonce=nonce,
         vendor_rows="".join(vendor_row(v) for v in vendors),
         payment_rows="".join(payment_row(p) for p in payments),
+        admin_rows="".join(admin_row(a) for a in admin_events) or "<tr><td colspan='4' class='muted'>no admin events</td></tr>",
         refusal_rows="".join(refusal_row(r) for r in refusals) or "<tr><td colspan='4' class='muted'>no refusals recorded</td></tr>",
         invoice_rows="".join(invoice_row(i) for i in invoices),
         payment_count=len(payments),
+        retries_note=(
+            f"{retries} further attempt(s) were retried after the operator raised a gas parameter; "
+            "they are in demo/journal.jsonl and are not policy refusals."
+            if retries
+            else ""
+        ),
     )
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(html)
@@ -185,11 +197,22 @@ def vendor_row(v: dict) -> str:
 def payment_row(p: dict) -> str:
     return f"""
       <tr>
+        <td class="mono">{p.get('invoice','')}</td>
         <td><span class="pill {'ok' if p['kind']=='agent' else 'purple'}">{p['kind']}</span></td>
         <td>{p['vendor']}</td>
         <td class="num">{qor(p['amount'])} QOR</td>
         <td class="mono muted">{p['memo']}</td>
         <td class="mono"><a href="https://explore.qore.network/tx/{p['tx']}" target="_blank" rel="noreferrer">{p['tx'][:14]}…</a></td>
+      </tr>"""
+
+
+def admin_row(a: dict) -> str:
+    return f"""
+      <tr>
+        <td class="mono">{a['action']}</td>
+        <td class="num">{a['nonce']}</td>
+        <td class="num">{a['block']}</td>
+        <td class="mono"><a href="https://explore.qore.network/tx/{a['tx']}" target="_blank" rel="noreferrer">{a['tx'][:14]}…</a></td>
       </tr>"""
 
 
@@ -288,10 +311,16 @@ TEMPLATE = """<!doctype html>
     <tbody>{vendor_rows}</tbody>
   </table>
 
-  <h2>Ledger (on-chain events)</h2>
+  <h2>Ledger — payments the agent settled</h2>
   <table>
-    <thead><tr><th>Path</th><th>Vendor</th><th class="num">Amount</th><th>Memo commitment</th><th>Transaction</th></tr></thead>
+    <thead><tr><th>Invoice</th><th>Path</th><th>Vendor</th><th class="num">Amount</th><th>Memo commitment</th><th>Transaction</th></tr></thead>
     <tbody>{payment_rows}</tbody>
+  </table>
+
+  <h2>Owner actions verified on chain (pqcVerify)</h2>
+  <table>
+    <thead><tr><th>Action tag</th><th class="num">Approval nonce</th><th class="num">Block</th><th>Transaction</th></tr></thead>
+    <tbody>{admin_rows}</tbody>
   </table>
 
   <h2>Refusals (what the chain and the contract said no to)</h2>

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QoreGuard · treasury</title>
+<style>
+  :root {
+    --bg:#0b0f14; --panel:#121821; --line:#1e2733; --text:#e6edf3; --muted:#8b98a5;
+    --ok:#3fb950; --bad:#f85149; --purple:#a371f7; --accent:#58a6ff;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif; }
+  header { padding:28px 32px 18px; border-bottom:1px solid var(--line); }
+  h1 { margin:0 0 6px; font-size:22px; letter-spacing:-.2px; }
+  h1 span { color:var(--accent); }
+  .sub { color:var(--muted); font-size:13px; }
+  main { padding:24px 32px 60px; max-width:1180px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin-bottom:26px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .card .k { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.6px; }
+  .card .v { font-size:24px; margin-top:6px; font-weight:600; }
+  .card .v small { font-size:13px; color:var(--muted); font-weight:400; }
+  .bar { height:6px; background:#1b2430; border-radius:99px; overflow:hidden; margin-top:10px; }
+  .bar span { display:block; height:100%; background:linear-gradient(90deg,#1f6feb,#58a6ff); }
+  h2 { font-size:15px; margin:30px 0 10px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; }
+  table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  th,td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--line); font-size:14px; }
+  th { color:var(--muted); font-weight:500; font-size:12px; text-transform:uppercase; letter-spacing:.5px; }
+  tr:last-child td { border-bottom:none; }
+  .num { text-align:right; font-variant-numeric:tabular-nums; }
+  .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; }
+  .muted { color:var(--muted); }
+  a { color:var(--accent); text-decoration:none; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:99px; font-size:12px; border:1px solid var(--line); background:#0e141c; }
+  .pill.ok { color:var(--ok); border-color:#1f3a25; background:#0f1a12; }
+  .pill.bad { color:var(--bad); border-color:#3d1d1d; background:#1a0f0f; }
+  .pill.purple { color:var(--purple); border-color:#2c2140; background:#150f20; }
+  .why { color:#d29922; font-size:13px; }
+  .barcell { width:180px; }
+  footer { color:var(--muted); font-size:12px; padding:0 32px 40px; }
+  .addr { word-break:break-all; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Qore<span>Guard</span> · treasury on qorechain-diana</h1>
+  <div class="sub">Owner account <span class="mono addr">0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266</span> ·
+    contract <span class="mono addr">0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9</span></div>
+  <div class="sub">Read from the chain at 2026-11-26 13:33 UTC. Every number below is a view call or an event, not a local estimate.</div>
+</header>
+<main>
+  <div class="grid">
+    <div class="card">
+      <div class="k">Spent today</div>
+      <div class="v">650000 <small>uqor of 1200000</small></div>
+      <div class="bar"><span style="width:54.2%"></span></div>
+    </div>
+    <div class="card"><div class="k">All-time paid</div><div class="v">650000 <small>uqor</small></div></div>
+    <div class="card"><div class="k">Payments</div><div class="v">2</div></div>
+    <div class="card"><div class="k">Approval nonce</div><div class="v">3 <small>PQ-signed actions</small></div></div>
+  </div>
+
+  <h2>Vendors and caps</h2>
+  <table>
+    <thead><tr><th>Vendor</th><th>Payee</th><th class="num">Per tx</th><th class="num">Today / cap</th><th></th><th>State</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="pill">cloud-hosting</span><span class="mono muted"> #1</span></td>
+        <td class="mono">0x70997970c51812dc3a010c7d01b50e0d17dc79c8</td>
+        <td class="num">0.200</td>
+        <td class="num">0.150 / 1.000</td>
+        <td class="barcell"><div class="bar"><span style="width:15.0%"></span></div></td>
+        <td>active</td>
+      </tr>
+      <tr>
+        <td><span class="pill">api-credits</span><span class="mono muted"> #2</span></td>
+        <td class="mono">0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc</td>
+        <td class="num">0.300</td>
+        <td class="num">0.000 / 0.600</td>
+        <td class="barcell"><div class="bar"><span style="width:0.0%"></span></div></td>
+        <td>active</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Ledger (on-chain events)</h2>
+  <table>
+    <thead><tr><th>Path</th><th>Vendor</th><th class="num">Amount</th><th>Memo commitment</th><th>Transaction</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="pill ok">agent</span></td>
+        <td>cloud-hosting</td>
+        <td class="num">0.150 QOR</td>
+        <td class="mono muted">0xe4f729cc5c74e269</td>
+        <td class="mono"><a href="https://explore.qore.network/tx/0xcd446d21df734c4bfef06be9bd79a0d3fdf0e866b1d203929ad15f253e8f70f3" target="_blank" rel="noreferrer">0xcd446d21df73…</a></td>
+      </tr>
+      <tr>
+        <td><span class="pill purple">PQ-approved #2</span></td>
+        <td>cloud-hosting</td>
+        <td class="num">0.500 QOR</td>
+        <td class="mono muted">0x2e83dbf72203bf20</td>
+        <td class="mono"><a href="https://explore.qore.network/tx/0xd0decd1379bc06e4cdde665920bd81369769b65c8f683e2e2851cc8ad2d29ac7" target="_blank" rel="noreferrer">0xd0decd1379bc…</a></td>
+      </tr></tbody>
+  </table>
+
+  <h2>Refusals (what the chain and the contract said no to)</h2>
+  <table>
+    <thead><tr><th>Invoice</th><th class="num">Amount</th><th>Reason</th><th>Transaction</th></tr></thead>
+    <tbody><tr><td colspan='4' class='muted'>no refusals recorded</td></tr></tbody>
+  </table>
+
+  <h2>Invoices</h2>
+  <table>
+    <thead><tr><th>Invoice</th><th>Vendor</th><th class="num">Amount</th><th>Memo</th><th>Signature</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono">INV-1001</td>
+        <td>cloud-hosting</td>
+        <td class="num">0.150 QOR</td>
+        <td>November cloud hosting</td>
+        <td><span class="pill ok">signed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">INV-1002</td>
+        <td>cloud-hosting</td>
+        <td class="num">0.500 QOR</td>
+        <td>GPU burst overage above the agreed cap</td>
+        <td><span class="pill ok">signed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">INV-1003</td>
+        <td>api-credits</td>
+        <td class="num">0.700 QOR</td>
+        <td>Prepaid API credits, annual commitment</td>
+        <td><span class="pill ok">signed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">INV-1004</td>
+        <td>api-credits</td>
+        <td class="num">0.250 QOR</td>
+        <td>Monthly API plan</td>
+        <td><span class="pill ok">signed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">INV-1006</td>
+        <td>cloud-hosting</td>
+        <td class="num">0.100 QOR</td>
+        <td>Monitoring add-on</td>
+        <td><span class="pill ok">signed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">INV-1007</td>
+        <td>api-credits</td>
+        <td class="num">0.400 QOR</td>
+        <td>Second API top-up on the same day</td>
+        <td><span class="pill ok">signed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">INV-1008</td>
+        <td>cloud-hosting</td>
+        <td class="num">0.100 QOR</td>
+        <td>Late fee, amount adjusted after signing</td>
+        <td><span class="pill bad">tampered — refused</span></td>
+      </tr></tbody>
+  </table>
+</main>
+<footer>QoreGuard · Build Before Q-Day · QoreChain testnet. Test tokens only; nothing here has value.</footer>
+</body>
+</html>

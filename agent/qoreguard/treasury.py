@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Sequence
 
+from eth_abi import decode as abi_decode
 from eth_abi import encode as abi_encode
 from eth_utils import keccak, to_checksum_address
 
@@ -181,6 +182,53 @@ def owner_sign(
     message = admin_message(chain_id, contract, action, payload_hash, nonce)
     signature = signer(pqc_keypair.secret_key, message)
     return OwnerSignature(nonce=nonce, pubkey=pqc_keypair.public_key, signature=signature, message=message)
+
+
+# Custom errors, so a refusal reads as the contract's own words rather than
+# "execution reverted".
+ERRORS: dict[bytes, tuple[str, list[str]]] = {
+    keccak(text=sig)[:4]: (sig.split("(")[0], sig.split("(")[1].rstrip(")").split(","))
+    for sig in (
+        "NotOwnerAccount(address)",
+        "UnknownVendor(uint256)",
+        "VendorExists(uint256)",
+        "VendorInactive(uint256)",
+        "PerVendorTxCapExceeded(uint256,uint96)",
+        "PerVendorDayCapExceeded(uint256,uint96)",
+        "TreasuryDayCapExceeded(uint256,uint96)",
+        "ValueMismatch(uint256,uint256)",
+        "PqcKeyNotRegistered()",
+        "PqcKeyNotProven()",
+        "PqcKeyMismatch()",
+        "BadPqcSignature()",
+        "StaleApprovalNonce(uint256,uint256)",
+        "PrecompileUnavailable()",
+        "TransferFailed(address,uint256)",
+        "ZeroAmount()",
+        "ZeroPayee()",
+    )
+}
+
+
+def decode_revert(ret: bytes) -> str | None:
+    """Turn revert data into `PerVendorTxCapExceeded(500000, 200000)`.
+
+    Returns None when the data is not one of this contract's custom errors, so
+    the caller can fall back to the node's own message.
+    """
+    if not ret or len(ret) < 4:
+        return None
+    entry = ERRORS.get(ret[:4])
+    if entry is None:
+        return None
+    name, types = entry
+    if not types or types == [""]:
+        return f"{name}()"
+    try:
+        values = abi_decode(types, ret[4:])
+    except Exception:
+        return f"{name}(…)"
+    return f"{name}(" + ", ".join(str(v) for v in values) + ")"
 
 
 def decode_uint(raw_hex: str) -> int:

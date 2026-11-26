@@ -30,7 +30,11 @@ from qorsdk import (
     get_evm_window,
 )
 from qorsdk import decode_execution_results, ensure_pqc_registered
-from qorsdk.tx import build_hybrid_tx, hybrid_sign_and_broadcast
+from qorsdk.key_integrity import should_attach_proof_of_possession, sign_proof_of_possession
+from qorsdk.messages import msg as compose
+from qorsdk.sign_eth import sign_classical_eth, sign_hybrid_eth
+from qorsdk.tx import build_hybrid_tx, broadcast, hybrid_sign_and_broadcast
+from qorsdk.unified import UnifiedAccount
 
 from .config import Settings
 
@@ -79,7 +83,20 @@ class Chain:
 
     def pqc_status(self, address: str) -> dict:
         st = fetch_pqc_status(self.cfg.rest, address)
-        return {"registered": bool(getattr(st, "registered", False)), "pubkey": getattr(st, "public_key", b"")}
+        pub = st.get("pubkey", b"")
+        if isinstance(pub, str):
+            import base64
+
+            try:
+                pub = base64.b64decode(pub)
+            except Exception:
+                pub = b""
+        return {
+            "registered": bool(st.get("registered", False)),
+            "pubkey": pub or b"",
+            "algorithm_id": st.get("algorithm_id"),
+            "possession_proven": st.get("possession_proven"),
+        }
 
     def auth_nonce(self, owner: str, agent_pubkey: bytes) -> AuthNonce:
         return fetch_auth_nonce(self, owner, agent_pubkey)
@@ -113,12 +130,12 @@ class Chain:
             rest_url=self.cfg.rest,
             fee=fee,
         )
-        if not getattr(res, "already_registered", True):
+        if not res.get("already_registered", True):
             time.sleep(wait)
         return {
-            "already_registered": bool(getattr(res, "already_registered", False)),
-            "tx_hash": getattr(res, "tx_hash", None),
-            "pubkey_sha256_len": len(kp.public_key),
+            "already_registered": bool(res.get("already_registered", False)),
+            "tx_hash": res.get("tx_hash"),
+            "pubkey_len": len(kp.public_key),
         }
 
     def send_hybrid(
@@ -150,9 +167,112 @@ class Chain:
             ),
             chain_id=self.cfg.chain_id,
             rest_url=self.cfg.rest,
-            mode="block",
+            mode="sync",
         )
-        return self._outcome(resp)
+        outcome = self._outcome(resp)
+        if outcome.code == 0 and outcome.tx_hash:
+            outcome = self._with_inclusion(outcome)
+        return outcome
+
+    def _with_inclusion(self, outcome: TxOutcome, timeout: float = 25.0) -> TxOutcome:
+        """Wait for the tx to be included and decode its execution results.
+
+        A relayed payment that the contract refused still lands with `code: 0`;
+        only the execution result inside it says no. `sync` broadcast has no
+        result yet, so this reads the delivered transaction.
+        """
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            try:
+                body = self.tx(outcome.tx_hash)
+            except Exception:
+                time.sleep(1.5)
+                continue
+            txr = body.get("tx_response") or {}
+            if not txr.get("height") or txr.get("height") == "0":
+                time.sleep(1.5)
+                continue
+            try:
+                executions = decode_execution_results(body)
+            except Exception:
+                executions = []
+            return TxOutcome(
+                tx_hash=outcome.tx_hash, code=int(txr.get("code", 0) or 0),
+                raw_log=(txr.get("raw_log") or "")[:600], executions=executions,
+            )
+        return outcome
+
+    def ensure_pqc_eth(self, owner: UnifiedAccount, wait: float = 6.0) -> dict:
+        """Register the owner's canonical ML-DSA-87 key (eth-signed, idempotent).
+
+        The registration transaction is the one message the chain accepts with
+        the classical key alone (a hybrid signature would need the very key being
+        registered), so it is signed with `sign_classical_eth`.
+        """
+        st = self.pqc_status(owner.cosmos)
+        if st["registered"]:
+            return {"already_registered": True, "tx_hash": None}
+        acct_no, seq = self.account_state(owner.cosmos)
+        attach = False
+        try:
+            attach = should_attach_proof_of_possession(self.cfg.chain_id, self.cfg.rest)
+        except Exception:
+            attach = False
+        fields = {
+            "sender": owner.cosmos,
+            "public_key": owner.pqc.public_key,
+            "algorithm_id": 1,
+            "ecdsa_pubkey": owner.public_key,
+            "key_type": "hybrid",
+        }
+        if attach:
+            fields["proof_of_possession"] = sign_proof_of_possession(
+                chain_id=self.cfg.chain_id, account=owner.cosmos, keypair=owner.pqc
+            )
+        message = compose.pqc.register_pqc_key_v2(**fields)
+        fee = {"amount": [{"denom": "uqor", "amount": str(self.cfg.fee_uqor)}], "gas": str(self.cfg.gas)}
+        built = sign_classical_eth(
+            owner, self.cfg.chain_id, acct_no, [message], fee, seq, memo="qoreguard:register-pqc"
+        )
+        resp = broadcast(self.cfg.rest, built.tx_raw_bytes, mode="sync")
+        outcome = self._outcome(resp)
+        if outcome.code != 0:
+            raise RuntimeError(f"PQC registration refused: {outcome.raw_log}")
+        time.sleep(wait)
+        return {"already_registered": False, "tx_hash": outcome.tx_hash, "proof_of_possession": attach}
+
+    def send_owner(
+        self,
+        owner: UnifiedAccount,
+        messages: list[Any],
+        memo: str = "",
+        gas: int | None = None,
+        fee_uqor: int | None = None,
+    ) -> TxOutcome:
+        """Hybrid-signed native transaction from the eth-native owner account."""
+        gas = gas or self.cfg.gas
+        fee_uqor = fee_uqor or self.cfg.fee_uqor
+        acct_no, seq = self.account_state(owner.cosmos)
+        fee = {"amount": [{"denom": "uqor", "amount": str(fee_uqor)}], "gas": str(gas)}
+        resp = hybrid_sign_and_broadcast(
+            lambda version: sign_hybrid_eth(
+                owner,
+                self.cfg.chain_id,
+                acct_no,
+                messages,
+                fee,
+                seq,
+                memo=memo,
+                sign_bytes_version=version,
+            ),
+            chain_id=self.cfg.chain_id,
+            rest_url=self.cfg.rest,
+            mode="sync",
+        )
+        outcome = self._outcome(resp)
+        if outcome.code == 0 and outcome.tx_hash:
+            outcome = self._with_inclusion(outcome)
+        return outcome
 
     def _outcome(self, resp: dict) -> TxOutcome:
         txr = resp.get("tx_response") or resp

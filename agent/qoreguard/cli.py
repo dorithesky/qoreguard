@@ -16,15 +16,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
 
 from eth_abi import decode as abi_decode
 from eth_abi import encode as abi_encode
-from qorsdk import derive_native_account, derive_pqc_canonical, link_authenticator_msgs, link_proof_ed25519
+from qorsdk import derive_native_account, link_authenticator_msgs, link_proof_ed25519
 from qorsdk.address import bech32_to_hex
 
+from . import accounts as acct_mod
 from . import treasury as T
 from .agent import Agent, Journal
 from .chain import Chain
@@ -75,29 +77,31 @@ def require_deployment() -> dict:
 # ---------------------------------------------------------------------- #
 def cmd_status(cfg: Settings, args: argparse.Namespace) -> None:
     chain, evm, agent = build(cfg)
-    owner = derive_native_account(cfg.owner_mnemonic)
+    owner = acct_mod.load(cfg).owner
     relayer = derive_native_account(cfg.relayer_mnemonic)
-    kp = derive_pqc_canonical(owner.address, cfg.owner_mnemonic)
 
     say("network", chain_id=cfg.chain_id, rest=cfg.rest, evm_chain_id=evm.chain_id_on_chain())
-    for name, acct in (("owner", owner), ("relayer", relayer)):
+    for name, qor_addr, evm_addr in (
+        ("owner", owner.cosmos, owner.evm),
+        ("relayer", relayer.address, bech32_to_hex(relayer.address)),
+    ):
         try:
-            bal = chain.qor(acct.address)
-            acct_no, seq = chain.account_state(acct.address)
+            bal = chain.qor(qor_addr)
+            acct_no, seq = chain.account_state(qor_addr)
         except Exception:
             bal, acct_no, seq = 0.0, -1, -1
-        st = chain.pqc_status(acct.address).get("registered")
+        st = chain.pqc_status(qor_addr).get("registered")
         say(
             name,
-            address=acct.address,
-            evm=bech32_to_hex(acct.address),
+            address=qor_addr,
+            evm=evm_addr,
             qor=week(bal),
             account_number=acct_no,
             sequence=seq,
             pqc_registered=st,
         )
 
-    w = chain.evm_window(owner.address)
+    w = chain.evm_window(owner.cosmos)
     say(
         "evm window",
         live=w.live,
@@ -106,7 +110,7 @@ def cmd_status(cfg: Settings, args: argparse.Namespace) -> None:
         remaining_value_uqor=w.remaining_value,
         targets=list(w.allowed_targets),
     )
-    nonce = chain.auth_nonce(owner.address, agent.pubkey)
+    nonce = chain.auth_nonce(owner.cosmos, agent.pubkey)
     say("agent linker key", pubkey=agent.pubkey.hex()[:32] + "…", nonce=nonce.nonce, linked=nonce.linked)
 
     if Path(DEPLOYMENT).exists():
@@ -142,28 +146,64 @@ def cmd_status(cfg: Settings, args: argparse.Namespace) -> None:
 
 
 def cmd_register(cfg: Settings, args: argparse.Namespace) -> None:
+    """Register the canonical ML-DSA-87 key of each account that will sign."""
     chain, _, agent = build(cfg)
-    for name, mnemonic in (
-        ("owner", cfg.owner_mnemonic),
-        ("relayer", cfg.relayer_mnemonic),
-        ("vendor", cfg.vendor_mnemonic),
-    ):
-        if not mnemonic:
-            continue
-        acct = derive_native_account(mnemonic)
-        if chain.qor(acct.address) == 0:
-            print(f"{name}: no test QOR yet at {acct.address} — fund it from the faucet first")
-            continue
-        res = chain.ensure_pqc(acct, mnemonic)
-        say(f"register {name}", address=acct.address, **{k: str(v) for k, v in res.items()})
+    owner = acct_mod.load(cfg).owner
+    if chain.qor(owner.cosmos) == 0:
+        print(f"owner: no test QOR yet at {owner.cosmos} — fund it from the faucet first")
+    else:
+        res = chain.ensure_pqc_eth(owner)
+        say("register owner (eth-native, classical bootstrap tx)", address=owner.cosmos, **{k: str(v) for k, v in res.items()})
+
+    relayer = derive_native_account(cfg.relayer_mnemonic)
+    if chain.qor(relayer.address) == 0:
+        print(f"relayer: no test QOR yet at {relayer.address}")
+    else:
+        res = chain.ensure_pqc(relayer, cfg.relayer_mnemonic)
+        say("register relayer (native)", address=relayer.address, **{k: str(v) for k, v in res.items()})
     print("\nkey registration is idempotent: an already-registered key sends nothing")
+
+
+def cmd_fund(cfg: Settings, args: argparse.Namespace) -> None:
+    """Owner sends test QOR to the relayer or a vendor account (native lane, hybrid signed)."""
+    chain, evm, agent = build(cfg)
+    from qorsdk.messages.cosmos import MsgSend
+
+    owner = acct_mod.load(cfg).owner
+    targets = {
+        "relayer": cfg.relayer_mnemonic,
+        "vendor": cfg.vendor_mnemonic,
+        "vendor2": os.environ.get("QORE_VENDOR2_MNEMONIC", ""),
+    }
+    mnemonic = targets.get(args.account)
+    if not mnemonic:
+        raise SystemExit(f"unknown or unfunded account {args.account!r}")
+    to = derive_native_account(mnemonic)
+    msg = MsgSend(
+        from_address=owner.cosmos,
+        to_address=to.address,
+        amount=[{"denom": "uqor", "amount": str(args.amount)}],
+    )
+    outcome = chain.send_owner(
+        owner,
+        [{"type_url": "/cosmos.bank.v1beta1.MsgSend", "value": msg}],
+        memo=f"qoreguard:fund-{args.account}",
+    )
+    say(
+        f"fund {args.account}",
+        to=to.address,
+        amount_uqor=args.amount,
+        tx=outcome.tx_hash,
+        code=outcome.code,
+        log=outcome.raw_log if outcome.code else "ok",
+    )
 
 
 def cmd_window(cfg: Settings, args: argparse.Namespace) -> None:
     chain, evm, agent = build(cfg)
-    owner = derive_native_account(cfg.owner_mnemonic)
+    owner = acct_mod.load(cfg).owner
     if args.action == "status":
-        w = chain.evm_window(owner.address)
+        w = chain.evm_window(owner.cosmos)
         say(
             "evm window",
             live=w.live,
@@ -178,28 +218,28 @@ def cmd_window(cfg: Settings, args: argparse.Namespace) -> None:
         )
         return
     if args.action == "close":
-        from qorsdk.messages.qorechain import MsgCloseEVMWindow
+        from qorsdk.messages import msg
 
-        outcome = chain.send_hybrid(
-            owner, agent.owner_pqc, [MsgCloseEVMWindow(sender=owner.address)], memo="qoreguard:close-window"
+        outcome = chain.send_owner(
+            owner, [msg.pqc.close_evm_window(sender=owner.cosmos)], memo="qoreguard:close-window"
         )
         say("close window", tx=outcome.tx_hash, code=outcome.code, log=outcome.raw_log)
         return
 
-    from qorsdk.messages.qorechain import MsgOpenEVMWindow
+    from qorsdk.messages import msg as compose
 
-    msg = MsgOpenEVMWindow(
-        sender=owner.address,
+    open_msg = compose.pqc.open_evm_window(
+        sender=owner.cosmos,
         blocks=args.blocks,
         max_txs=args.txs,
-        max_value=str(args.value),
+        max_value=args.value,
         native_only=False,
-        allowed_targets=tuple(args.target or ()),
+        allowed_targets=list(args.target or ()),
     )
-    outcome = chain.send_hybrid(owner, agent.owner_pqc, [msg], memo="qoreguard:open-window")
+    outcome = chain.send_owner(owner, [open_msg], memo="qoreguard:open-window")
     if outcome.code != 0:
         raise SystemExit(f"window refused: {outcome.raw_log}")
-    w = chain.evm_window(owner.address)
+    w = chain.evm_window(owner.cosmos)
     say(
         "window opened",
         tx=outcome.tx_hash,
@@ -214,15 +254,16 @@ def cmd_window(cfg: Settings, args: argparse.Namespace) -> None:
 
 def cmd_deploy(cfg: Settings, args: argparse.Namespace) -> None:
     chain, evm, agent = build(cfg)
-    owner = derive_native_account(cfg.owner_mnemonic)
+    owner = acct_mod.load(cfg).owner
     cap = args.treasury_cap
-    nonce = chain.account_state(owner.address)[1]
+    nonce = chain.account_state(owner.cosmos)[1]
     tx = evm.deploy(
         owner.private_key,
         str(ARTIFACT),
         ["address", "uint96"],
-        [bech32_to_hex(owner.address), cap],
+        [owner.evm, cap],
         gas=args.gas,
+        gas_price=cfg.evm_gas_price_wei,
         nonce=nonce,
     )
     receipt = evm.wait(tx)
@@ -302,18 +343,18 @@ def cmd_link(cfg: Settings, args: argparse.Namespace) -> None:
     dep = require_deployment()
     contract = dep["contract"]
     mandate = Mandate.load(args.mandate)
-    owner = derive_native_account(cfg.owner_mnemonic)
+    owner = acct_mod.load(cfg).owner
 
     proof = link_proof_ed25519(
         agent.key.private_bytes_raw() if hasattr(agent.key, "private_bytes_raw") else _raw(agent.key),
         chain_id=cfg.chain_id,
-        account_address=owner.address,
+        account_address=owner.cosmos,
     )
     expiry = int(time.time()) + mandate.agent_link_hours * 3600
     rule = {
         "id": "qoreguard-agent",
-        "per_tx_limit": str(mandate.agent_per_tx_cap_uqor),
-        "daily_limit": str(mandate.agent_daily_cap_uqor),
+        "per_tx_limit": int(mandate.agent_per_tx_cap_uqor),
+        "daily_limit": int(mandate.agent_daily_cap_uqor),
         "allowed_denoms": ["uqor"],
         "allowed_evm_calls": [
             f"{contract}/0x{T.SEL_PAY.hex()}",
@@ -322,7 +363,7 @@ def cmd_link(cfg: Settings, args: argparse.Namespace) -> None:
         "enabled": True,
     }
     msgs = link_authenticator_msgs(
-        owner=owner.address,
+        owner=owner.cosmos,
         chain_id=cfg.chain_id,
         scheme=proof.scheme,
         pubkey=proof.pubkey,
@@ -332,10 +373,10 @@ def cmd_link(cfg: Settings, args: argparse.Namespace) -> None:
         label="qoreguard-agent",
         spending_rule=rule,
     )
-    outcome = chain.send_hybrid(owner, agent.owner_pqc, msgs, memo="qoreguard:link-agent")
+    outcome = chain.send_owner(owner, msgs, memo="qoreguard:link-agent")
     say(
         "link agent key",
-        owner=owner.address,
+        owner=owner.cosmos,
         agent_pubkey=agent.pubkey.hex(),
         permissions="send, evm",
         per_tx_limit_uqor=mandate.agent_per_tx_cap_uqor,
@@ -346,8 +387,29 @@ def cmd_link(cfg: Settings, args: argparse.Namespace) -> None:
         code=outcome.code,
         log=outcome.raw_log if outcome.code else "ok",
     )
-    rules = chain.spending_rules(owner.address)
+    rules = chain.spending_rules(owner.cosmos)
     say("chain now enforces", rules=rules)
+
+
+def cmd_caps(cfg: Settings, args: argparse.Namespace) -> None:
+    """Owner changes a vendor's caps with a fresh ML-DSA-87 signature."""
+    chain, evm, agent = build(cfg)
+    dep = require_deployment()
+    contract = dep["contract"]
+    nonce = int(contract_view(evm, contract, T.SEL_APPROVAL_NONCE), 16)
+    payload = T.payload_set_vendor_caps(args.vendor_id, args.per_tx, args.daily)
+    sig = agent.owner_sign(T.SET_VENDOR_CAPS, payload, nonce)
+    data = T.calldata_set_vendor_caps(args.vendor_id, args.per_tx, args.daily, nonce, sig.pubkey, sig.signature)
+    tx = agent.owner_calls_contract(data, gas=400_000)
+    receipt = evm.wait(tx)
+    say(
+        f"setVendorCaps vendor {args.vendor_id}",
+        per_tx_cap_uqor=args.per_tx,
+        daily_cap_uqor=args.daily,
+        status="ok" if receipt.ok else "REVERTED",
+        tx=tx,
+        approval_nonce=nonce,
+    )
 
 
 def cmd_run(cfg: Settings, args: argparse.Namespace) -> None:
@@ -357,6 +419,9 @@ def cmd_run(cfg: Settings, args: argparse.Namespace) -> None:
     paid = {e["invoice"] for e in journal.entries() if e.get("kind") == "payment" and e.get("chain_success")}
 
     items = annotate_with_llm(plan(mandate, paid), mandate)
+    if getattr(args, "invoice", None):
+        wanted = set(args.invoice)
+        items = [i for i in items if i.invoice.id in wanted]
     print(f"\n== plan ({len(items)} invoices)")
     for item in items:
         print(f"   {item.invoice.id:<10} {item.invoice.vendor:<14} {item.invoice.amount_uqor:>8} uqor  "
@@ -412,18 +477,42 @@ def cmd_approve(cfg: Settings, args: argparse.Namespace) -> None:
     print(f"   result  {'PAID (with post-quantum approval)' if decision.chain_success else 'REFUSED — ' + str(decision.chain_reason)}")
 
 
+def cmd_attack(cfg: Settings, args: argparse.Namespace) -> None:
+    """The Q-Day check: the owner's classical key alone tries to change the policy.
+
+    It signs the transaction (the EVM lane accepts the sender) but cannot produce
+    the ML-DSA-87 signature the contract asks for, so the call must be refused.
+    """
+    chain, evm, agent = build(cfg)
+    dep = require_deployment()
+    contract = dep["contract"]
+    nonce = int(contract_view(evm, contract, T.SEL_APPROVAL_NONCE), 16)
+    forged = bytes(4_627)  # a signature-shaped blob with no valid ML-DSA-87 signature
+    data = T.calldata_set_treasury_cap(999_999_999, nonce, agent.owner.pqc.public_key, forged)
+    tx = agent.owner_calls_contract(data, gas=900_000)
+    receipt = evm.wait(tx)
+    reason = "refused (status 0)" if not receipt.ok else "ACCEPTED — this would be a failure of the PQ gate"
+    say(
+        "Q-Day check: classical owner key alone tries setTreasuryCap",
+        tx=tx,
+        status=reason,
+        gas_used=receipt.gas_used,
+        note="the transaction was mined; the contract reverted because pqcVerify returned false",
+    )
+
+
 def cmd_revoke(cfg: Settings, args: argparse.Namespace) -> None:
     chain, evm, agent = build(cfg)
     from qorsdk.messages import qorechain
 
-    owner = derive_native_account(cfg.owner_mnemonic)
+    owner = acct_mod.load(cfg).owner
     msg = qorechain.abstractaccount.revoke_authenticator(
-        owner=owner.address,
-        account_address=owner.address,
+        owner=owner.cosmos,
+        account_address=owner.cosmos,
         scheme="ed25519",
         pubkey=agent.pubkey,
     )
-    outcome = chain.send_hybrid(owner, agent.owner_pqc, [msg], memo="qoreguard:revoke-agent")
+    outcome = chain.send_owner(owner, [msg], memo="qoreguard:revoke-agent")
     say("revoke agent key", tx=outcome.tx_hash, code=outcome.code, log=outcome.raw_log if outcome.code else "ok")
 
 
@@ -474,6 +563,10 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("register", help="register ML-DSA-87 keys (idempotent)")
 
+    f = sub.add_parser("fund", help="owner sends test QOR to another account")
+    f.add_argument("account", choices=["relayer", "vendor", "vendor2"])
+    f.add_argument("--amount", type=int, default=3_000_000)
+
     w = sub.add_parser("window", help="scoped EVM window: open / status / close")
     w.add_argument("action", choices=["open", "status", "close"])
     w.add_argument("--blocks", type=int, default=100)
@@ -496,6 +589,12 @@ def main(argv: list[str] | None = None) -> int:
 
     r = sub.add_parser("run", help="run the agent over the mandate")
     r.add_argument("--mandate", default=str(MANDATE_PATH))
+    r.add_argument("--invoice", action="append", help="only these invoice ids")
+
+    c = sub.add_parser("caps", help="owner changes a vendor's caps (PQ-signed)")
+    c.add_argument("vendor_id", type=int)
+    c.add_argument("--per-tx", type=int, required=True)
+    c.add_argument("--daily", type=int, required=True)
 
     a = sub.add_parser("approve", help="owner approves one over-cap payment")
     a.add_argument("invoice")
@@ -504,6 +603,8 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("revoke", help="revoke the agent key")
 
+    sub.add_parser("attack", help="Q-Day check: classical owner key tries a policy change")
+
     sub.add_parser("verify", help="re-verify the journal")
 
     args = parser.parse_args(argv)
@@ -511,13 +612,16 @@ def main(argv: list[str] | None = None) -> int:
     handlers = {
         "status": cmd_status,
         "register": cmd_register,
+        "fund": cmd_fund,
         "window": cmd_window,
         "deploy": cmd_deploy,
         "setup": cmd_setup,
         "link": cmd_link,
+        "caps": cmd_caps,
         "run": cmd_run,
         "approve": cmd_approve,
         "revoke": cmd_revoke,
+        "attack": cmd_attack,
         "verify": cmd_verify,
     }
     handlers[args.command](cfg, args)

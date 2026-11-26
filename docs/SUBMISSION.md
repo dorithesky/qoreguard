@@ -11,11 +11,11 @@ describes only what the repository and the testnet actually contain.
 | Category | Post-Quantum AI Agents |
 | Team | pickle-scout (solo) |
 | Licence | Apache-2.0 |
-| Repository | https://github.com/dorithesky/qoreguard |
+| Repository | https://github.com/dorithesky/qoreguard (see docs/EVIDENCE.md until published) |
 | Video | `demo/qoreguard-demo.mp4` (uploaded to the submission form) |
 | Featured image | `docs/cover.png` |
 | Network | QoreChain testnet `qorechain-diana` (EVM chain ID 9800) |
-| Testnet addresses used | owner `qor1yk5xmg44hfaqv2h00p9lmcjuljhxkqt4k0cduq`, relayer `qor1zcsp7xup7y08czmc9z563x0qk3q6sm5827ftf8`, vendor accounts (see `docs/EVIDENCE.md`) |
+| Testnet addresses used | owner (eth-native) `qor1qj002t0yrrwud08geqww0r5f56tgu09rqjxqcd` / `0x049Ef52DE418DDC6Bce8c81ce78E89A6968e3Ca3`; relayer `qor1zcsp7xup7y08czmc9z563x0qk3q6sm5827ftf8`; vendors `0x305e5935929844bECA43aB6376226a7916A2d129`, `0xdB4a4925451FbCa4183Ea435ef29E4EF24fCF07D` |
 | Special award | Best AI-Native Build (`AI_USAGE.md`) |
 
 ## Short description (one line)
@@ -60,14 +60,19 @@ signature before it builds anything, and the payment's on-chain memo is a
 commitment to that exact signed invoice. The demo includes a tampered invoice
 whose amount changed after signing; it is refused before a transaction exists.
 
-**What the demo shows on testnet** (all hashes in `docs/EVIDENCE.md`): ML-DSA-87
-key registration for three accounts; the owner opening a one-transaction,
-0.0002-QOR-target EVM window and deploying the contract inside it; two vendors
-registered through PQ-signed calls; the agent linked with its rule; a payment
-that succeeds; a payment refused by the vendor cap; a payment refused by the
-chain's per-call cap; a vendor daily-cap refusal; one owner-approved exception
-that settles; and one `MsgRevokeAuthenticator` after which the chain refuses the
-agent with `linked key is unbound or revoked`.
+**What the demo shows on testnet** (every hash in `docs/EVIDENCE.md`): the
+owner's ML-DSA-87 key registered with a proof of possession in a classical
+bootstrap transaction; a deployment EVM window of one transaction, then a
+target-scoped admin window that admits only the treasury contract; two vendors
+registered through PQ-signed calls that the contract verified with
+`pqcVerify`; the agent linked with `send`+`evm`, 0.6 QOR/tx, 1.5 QOR/day and two
+allowed selectors; four payments settled; five policy refusals — two vendor-cap
+refusals, the chain's own per-call limit (`600000uqor exceeded (attempted
+700000)`), a vendor daily-cap refusal, and a tampered invoice stopped before the
+chain; one owner-approved exception that settled; one PQ-signed cap change; one
+`MsgRevokeAuthenticator` after which the chain answers `linked key is unbound or
+revoked`; and a Q-Day check where the owner's classical key submits a
+`setTreasuryCap` with a forged PQ signature — mined, reverted, policy unchanged.
 
 **Why this is AI-native.** The build itself used an AI workflow (documented in
 `AI_USAGE.md`), and the design keeps AI out of the trust path: the agent may be

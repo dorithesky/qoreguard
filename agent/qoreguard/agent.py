@@ -26,6 +26,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from qorsdk import derive_native_account, derive_pqc_canonical, pqc_sign
 from qorsdk.authenticator import execute_evm_msg
 
+from . import accounts as acct_mod
 from . import treasury as T
 from .chain import Chain
 from .config import Settings
@@ -114,9 +115,10 @@ class Agent:
         self.journal = Journal(journal)
         self.key = load_agent_key(cfg.agent_key_path)
         self.pubkey = agent_pubkey(self.key)
-        self.owner = derive_native_account(cfg.owner_mnemonic)
-        self.relayer = derive_native_account(cfg.relayer_mnemonic)
-        self.owner_pqc = derive_pqc_canonical(self.owner.address, cfg.owner_mnemonic)
+        treasury = acct_mod.load(cfg)
+        self.owner = treasury.owner  # eth-native: .cosmos for the native lane, .evm for the EVM lane
+        self.relayer = treasury.relayer
+        self.owner_pqc = treasury.owner.pqc
         self.relayer_pqc = derive_pqc_canonical(self.relayer.address, cfg.relayer_mnemonic)
 
     # ------------------------------------------------------------------ #
@@ -127,7 +129,7 @@ class Agent:
 
     def _auth_digest(self, to: str, value_wei: int, data: bytes, gas_limit: int, nonce: int) -> bytes:
         return self.chain.evm_auth_digest(
-            owner=self.owner.address,
+            owner=self.owner.cosmos,
             agent_pubkey=self.pubkey,
             to=to,
             value_wei=value_wei,
@@ -141,7 +143,7 @@ class Agent:
     # ------------------------------------------------------------------ #
     def build_intent(self, vendor_id: int, vendor_label: str, amount_uqor: int, memo: str) -> Intent:
         """The exact intent for the next payment (nonce read from the chain now)."""
-        nonce = self.chain.auth_nonce(self.owner.address, self.pubkey).nonce
+        nonce = self.chain.auth_nonce(self.owner.cosmos, self.pubkey).nonce
         return Intent(
             vendor_id=vendor_id,
             vendor_label=vendor_label,
@@ -162,7 +164,7 @@ class Agent:
         approval: T.OwnerSignature | None = None,
         intent: Intent | None = None,
     ) -> Decision:
-        nonce = self.chain.auth_nonce(self.owner.address, self.pubkey).nonce
+        nonce = self.chain.auth_nonce(self.owner.cosmos, self.pubkey).nonce
         if intent is None:
             intent = self.build_intent(vendor_id, vendor_label, amount_uqor, memo)
         elif intent.auth_nonce != nonce:
@@ -197,7 +199,7 @@ class Agent:
 
         msg = execute_evm_msg(
             relayer=self.relayer.address,
-            account=self.owner.address,
+            account=self.owner.cosmos,
             scheme="ed25519",
             pubkey=self.pubkey,
             signature=auth_sig,
@@ -231,7 +233,8 @@ class Agent:
             ex = outcome.executions[0]
             decision.chain_success = bool(ex.success)
             if not ex.success:
-                decision.chain_reason = ex.reason or ex.vm_error or "execution failed"
+                decoded = T.decode_revert(getattr(ex, "ret", b"") or b"")
+                decision.chain_reason = decoded or ex.reason or ex.vm_error or "execution failed"
         else:
             decision.chain_success = None
             decision.chain_reason = "no execution result in the response"
@@ -263,12 +266,13 @@ class Agent:
     # ------------------------------------------------------------------ #
     def owner_calls_contract(self, data: bytes, *, gas: int = 400_000) -> str:
         """Owner submits one EVM call from their own account, inside a window."""
-        nonce = self.chain.account_state(self.owner.address)[1]
+        nonce = self.chain.account_state(self.owner.cosmos)[1]
         return self.evm.send(
             self.owner.private_key,
             to=self.contract,
             data=data,
             gas=gas,
+            gas_price=self.cfg.evm_gas_price_wei,
             nonce=nonce,
         )
 

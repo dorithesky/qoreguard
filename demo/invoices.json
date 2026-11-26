@@ -63,6 +63,15 @@
       "tamper_note": "signed for 10000 uqor, this copy says 100000 uqor",
       "signer_pubkey": "d25a14eb5aa5c6d97cafeb8b53fe0b3ddf753eb887770158263d8661531fcae2",
       "signature": "1f43e92e16621d7613053d638d7f7e335815169940f3fb5a4fb872dfffcee93073bf63611bbf5d8c3e5c9d5a91113118b2afb8a08b6c8d91302eae2dd1971007"
+    },
+    {
+      "id": "INV-1009",
+      "vendor": "api-credits",
+      "amount_uqor": 200000,
+      "memo": "API overage beyond the daily allowance",
+      "due": "2026-12-02",
+      "signer_pubkey": "3ef5cf095faf81e195343fe669f9b36079f35b2be6d22933fad60c37929841d4",
+      "signature": "312948c5ac322d3686b76c9deca5749025daa6bcd604fa546c3b66248a543d6cb958ff923c0570d749642e67bdec96777864c864a0de7fe25c8b436c28b8a20c"
     }
   ]
 }

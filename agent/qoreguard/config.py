@@ -43,10 +43,10 @@ class Settings:
 
     # Fees: the network floor is 0.1 uqor per gas. 0.15 uqor/gas keeps a
     # hybrid transaction ahead of the floor (v3.2.8 mempool orders by fee/gas).
-    gas: int = 600_000
-    fee_uqor: int = 90_000
-    evm_gas: int = 300_000
-    evm_gas_price_wei: int = 10_000_000_000  # 10 gwei
+    gas: int = 1_500_000
+    fee_uqor: int = 225_000
+    evm_gas: int = 900_000
+    evm_gas_price_wei: int = 120_000_000_000  # 120 gwei (base fee is 100 gwei)
 
 
 def settings() -> Settings:

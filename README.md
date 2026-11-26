@@ -40,6 +40,18 @@ with a wallet.
    └───────────────────────────────────────────────────────────────────┘
 ```
 
+## What is on the testnet right now
+
+| | |
+| --- | --- |
+| Contract | [`0xa437ca5360214d4225ab3323da8f72db99250d92`](https://explore.qore.network/address/0xa437ca5360214d4225ab3323da8f72db99250d92) on `qorechain-diana` |
+| Owner (eth-native) | `qor1qj002t0yrrwud08geqww0r5f56tgu09rqjxqcd` / `0x049Ef52DE418DDC6Bce8c81ce78E89A6968e3Ca3` |
+| Relayer (native) | `qor1zcsp7xup7y08czmc9z563x0qk3q6sm5827ftf8` |
+| Vendors | `0x305e5935929844bECA43aB6376226a7916A2d129`, `0xdB4a4925451FbCa4183Ea435ef29E4EF24fCF07D` |
+| Payments settled | 4 (0.15 + 0.25 + 0.10 + 0.50 QOR), 1.0 QOR of a 1.5 QOR daily cap |
+| Policy refusals on chain | 5 (vendor per-tx ×2, chain per-tx, vendor daily, tampered invoice stopped off-chain) |
+| Evidence | [`docs/EVIDENCE.md`](docs/EVIDENCE.md) — every transaction hash, generated from the chain |
+
 ## Why two gates
 
 | Failure | What stops it |
@@ -128,6 +140,21 @@ The Foundry tests etch stand-ins for the two precompiles at their real
 addresses, so the policy and the PQ gate are exercised without a live node. The
 mock `pqcVerify` also binds the signature to the message, so a test can prove
 that an approval for 0.5 QOR cannot pay 0.9 QOR.
+
+## Two things a builder should know (learned the hard way)
+
+1. **The owner is an eth-native (unified) account.** QoreChain's EVM lane
+   attributes a transaction to the keccak-derived address of the signing key, so
+   a plain Cosmos-native account (whose 20 bytes are `ripemd160(sha256(pub))`)
+   can *read* its `0x` balance but cannot *send* from it on the EVM lane. The
+   owner, vendors and any account that sends on the EVM lane are therefore
+   `eth_secp256k1` accounts; the relayer, which only sends native transactions,
+   stays native. `derive_unified_account` gives one key for both lanes.
+2. **A refunded EVM execution still consumes the authenticator nonce.** A
+   payment that the contract refuses lands as a transaction with `code: 0` and an
+   `abstractaccount_execution_failed` event; the nonce has moved, so the next
+   attempt signs a new one. The agent reads the nonce from the chain for every
+   payment instead of tracking it locally.
 
 ## Honest limitations
 

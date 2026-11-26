@@ -108,7 +108,10 @@ def build_slides() -> list[Slide]:
     dep = load_json(ROOT / ".keys" / "deployment.json", {})
     entries = journal()
     paid = [e for e in entries if e.get("chain_success")]
-    refused = [e for e in entries if e.get("chain_success") is False]
+    refused = [
+        e for e in entries
+        if e.get("chain_success") is False and "gas" not in (e.get("chain_reason") or "").lower()
+    ]
     contract = dep.get("contract", "0x…")
 
     slides: list[Slide] = []
@@ -160,7 +163,8 @@ def build_slides() -> list[Slide]:
     slides.append(s)
 
     s = Slide("Agent run", f"Paid {len(paid)} invoices, refused {len(refused)}", 15)
-    for e in entries[:8]:
+    shown = [e for e in entries if "gas" not in (e.get("chain_reason") or "").lower()][:8]
+    for e in shown:
         ok = e.get("chain_success")
         mark = "PAID   " if ok else "REFUSED"
         color = OK if ok else BAD
