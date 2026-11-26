@@ -112,7 +112,7 @@ def main() -> int:
                 "vendor": e.get("vendor_label", ""),
                 "amount": e.get("amount_uqor", 0),
                 "memo": (e.get("onchain_memo") or "")[:24],
-                "kind": "PQ-approved" if e.get("action") == "payWithApproval" else "agent",
+                "kind": "PQ-approved" if e.get("action") in ("payWithApproval", "pay_with_approval") else "agent",
                 "invoice": e.get("invoice", ""),
             }
         )

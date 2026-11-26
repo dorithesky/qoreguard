@@ -156,7 +156,17 @@ def build_slides() -> list[Slide]:
     s.say(f"deploy tx {dep.get('tx', '—')}", TEXT, "mono")
     s.say(f"block     {dep.get('block', '—')}", TEXT, "mono")
     s.say("", style="gap")
-    s.say("MsgOpenEVMWindow: 1 transaction, 1.0 QOR of value+fees, 200 blocks.", TEXT, "small")
+    window_note = "1 transaction, 1.5 QOR of value+fees, 400 blocks"
+    ops = ROOT / "demo" / "operations.jsonl"
+    if ops.exists():
+        for line in ops.read_text().splitlines():
+            if not line.strip():
+                continue
+            o = json.loads(line)
+            if o.get("kind") == "window-open" and "deployment" in o.get("note", ""):
+                window_note = o["note"].split(":")[-1].strip()
+                break
+    s.say(f"MsgOpenEVMWindow: {window_note}.", TEXT, "small")
     s.say("The classical owner key alone can never open that window.", MUTED, "small")
     s.say("", style="gap")
     s.say("explore.qore.network (switch to Testnet) shows every hash in this video.", ACCENT, "small")
