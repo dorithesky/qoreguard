@@ -48,7 +48,7 @@
   <h1>Qore<span>Guard</span> · treasury on qorechain-diana</h1>
   <div class="sub">Owner account <span class="mono addr">0x049ef52de418ddc6bce8c81ce78e89a6968e3ca3</span> ·
     contract <span class="mono addr">0xa437ca5360214d4225ab3323da8f72db99250d92</span></div>
-  <div class="sub">Read from the chain at 2026-11-27 12:17 UTC. Every number below is a view call or an event, not a local estimate.</div>
+  <div class="sub">Read from the chain at 2026-11-27 13:13 UTC. Every number below is a view call or an event, not a local estimate.</div>
 </header>
 <main>
   <div class="grid">
@@ -60,7 +60,7 @@
     <div class="card"><div class="k">All-time paid</div><div class="v">1250000 <small>uqor</small></div></div>
     <div class="card"><div class="k">Payments</div><div class="v">6</div></div>
     <div class="card"><div class="k">Sealed invoices</div><div class="v">10 <small>ML-KEM-1024</small></div></div>
-    <div class="card"><div class="k">Approval nonce</div><div class="v">6 <small>PQ-signed actions</small></div></div>
+    <div class="card"><div class="k">Approval nonce</div><div class="v">4 <small>PQ-signed actions</small></div></div>
   </div>
 
   <h2>Beyond payments — the post-quantum rails</h2>
@@ -77,7 +77,7 @@
       <tr>
         <td><span class="pill purple">QoreSeal key</span></td>
         <td>ML-KEM-1024 key registered on chain (1568 bytes), read back identical</td>
-        <td class="mono muted">A32934FED596CE21DB3B6E4C6CFCEA81F1B2F57E76B46117A19EFCE64602E86C</td>
+        <td class="mono muted">key 0xc693331f2b9da6da…</td>
         <td><span class="pill ok">registered</span></td>
         <td class="mono"><a href="https://explore.qore.network/tx/A32934FED596CE21DB3B6E4C6CFCEA81F1B2F57E76B46117A19EFCE64602E86C" target="_blank" rel="noreferrer">A32934FED596CE21…</a></td>
       </tr>
@@ -167,9 +167,9 @@
       </tr>
       <tr>
         <td class="mono">INV-1013</td>
-        <td><span class="pill ok">agent</span></td>
+        <td><span class="pill purple">fUSD</span></td>
         <td>cloud-hosting</td>
-        <td class="num">0.000 QOR</td>
+        <td class="num">500 fUSD</td>
         <td class="mono muted">qg:v1:6c4b5532d6e1198404</td>
         <td class="mono"><a href="https://explore.qore.network/tx/3DAD3DF948B61ED87642BC476C6F79DD66A0E1F182405510EF9D1696FC028D08" target="_blank" rel="noreferrer">3DAD3DF948B61E…</a></td>
       </tr></tbody>
@@ -178,7 +178,31 @@
   <h2>Owner actions verified on chain (pqcVerify)</h2>
   <table>
     <thead><tr><th>Action tag</th><th class="num">Approval nonce</th><th class="num">Block</th><th>Transaction</th></tr></thead>
-    <tbody><tr><td colspan='4' class='muted'>no admin events</td></tr></tbody>
+    <tbody>
+      <tr>
+        <td class="mono">0xebbfed53f8d3</td>
+        <td class="num">0</td>
+        <td class="num">10791371</td>
+        <td class="mono"><a href="https://explore.qore.network/tx/0xc0abd503f0f1021c8942991727d39fd0f1143c3edea87eb32efb62736a218002" target="_blank" rel="noreferrer">0xc0abd503f0f1…</a></td>
+      </tr>
+      <tr>
+        <td class="mono">0xebbfed53f8d3</td>
+        <td class="num">1</td>
+        <td class="num">10791374</td>
+        <td class="mono"><a href="https://explore.qore.network/tx/0xdc71c2c388525c7c84732f9b333e8fd05a01ce94f0df2db7a3cd132b2a4f8ce3" target="_blank" rel="noreferrer">0xdc71c2c38852…</a></td>
+      </tr>
+      <tr>
+        <td class="mono">0x9d2615f02bbe</td>
+        <td class="num">2</td>
+        <td class="num">10791376</td>
+        <td class="mono"><a href="https://explore.qore.network/tx/0x4dfc37f3dc55a9bc0d4516cc098b4897be642385368c9fef7bab8f6b69ad180c" target="_blank" rel="noreferrer">0x4dfc37f3dc55…</a></td>
+      </tr>
+      <tr>
+        <td class="mono">0xe26df93c15bb</td>
+        <td class="num">4</td>
+        <td class="num">10791507</td>
+        <td class="mono"><a href="https://explore.qore.network/tx/0xac48abfb3669f13760f3f4a6c585dcac1b5e8c4344e56ce1a1ecb2bed732d752" target="_blank" rel="noreferrer">0xac48abfb3669…</a></td>
+      </tr></tbody>
   </table>
 
   <h2>Refusals (what the chain and the contract said no to)</h2>

@@ -43,14 +43,35 @@ def qor(uqor: int | str) -> str:
     return f"{int(uqor) / 1_000_000:.3f}"
 
 
+#: The public EVM RPC refuses a very wide eth_getLogs range, so it is walked
+#: in windows of this many blocks.
+LOG_CHUNK = 5_000
+
+
 def fetch_logs(evm: Evm, contract: str, topic: bytes, from_block: int) -> list[dict]:
-    try:
-        return evm.call(
-            "eth_getLogs",
-            [{"address": contract, "fromBlock": hex(from_block), "toBlock": "latest", "topics": ["0x" + topic.hex()]}],
-        )
-    except Exception:
-        return []
+    head = int(evm.call("eth_blockNumber"), 16)
+    out: list[dict] = []
+    start = from_block
+    while start <= head:
+        end = min(start + LOG_CHUNK - 1, head)
+        try:
+            out.extend(
+                evm.call(
+                    "eth_getLogs",
+                    [
+                        {
+                            "address": contract,
+                            "fromBlock": hex(start),
+                            "toBlock": hex(end),
+                            "topics": ["0x" + topic.hex()],
+                        }
+                    ],
+                )
+            )
+        except Exception:
+            pass
+        start = end + 1
+    return out
 
 
 def main() -> int:
@@ -105,6 +126,7 @@ def main() -> int:
     for e in journal:
         if not e.get("chain_success"):
             continue
+        token = e.get("kind") == "token_payment"
         payments.append(
             {
                 "tx": e.get("tx_hash") or "",
@@ -112,8 +134,16 @@ def main() -> int:
                 "vendor": e.get("vendor_label", ""),
                 "amount": e.get("amount_uqor", 0),
                 "memo": (e.get("onchain_memo") or "")[:24],
-                "kind": "PQ-approved" if e.get("action") in ("payWithApproval", "pay_with_approval") else "agent",
+                "kind": (
+                    "fUSD"
+                    if token
+                    else "PQ-approved"
+                    if e.get("action") in ("payWithApproval", "pay_with_approval")
+                    else "agent"
+                ),
                 "invoice": e.get("invoice", ""),
+                "unit": "fUSD" if token else "QOR",
+                "raw": e.get("amount", e.get("amount_uqor", 0)) if token else e.get("amount_uqor", 0),
             }
         )
 
@@ -262,12 +292,15 @@ def vendor_row(v: dict) -> str:
 
 
 def payment_row(p: dict) -> str:
+    unit = p.get("unit", "QOR")
+    amount = str(p.get("raw", p["amount"])) + " fUSD" if unit == "fUSD" else qor(p["amount"]) + " QOR"
+    tone = "ok" if p["kind"] == "agent" else "purple"
     return f"""
       <tr>
         <td class="mono">{p.get('invoice','')}</td>
-        <td><span class="pill {'ok' if p['kind']=='agent' else 'purple'}">{p['kind']}</span></td>
+        <td><span class="pill {tone}">{p['kind']}</span></td>
         <td>{p['vendor']}</td>
-        <td class="num">{qor(p['amount'])} QOR</td>
+        <td class="num">{amount}</td>
         <td class="mono muted">{p['memo']}</td>
         <td class="mono"><a href="https://explore.qore.network/tx/{p['tx']}" target="_blank" rel="noreferrer">{p['tx'][:14]}…</a></td>
       </tr>"""
