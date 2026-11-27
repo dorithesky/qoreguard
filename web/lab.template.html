@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QoreGuard · attack lab (no keys)</title>
+<style>
+  :root { --bg:#0b0f14; --panel:#121821; --line:#1e2733; --text:#e6edf3; --muted:#8b98a5;
+          --ok:#3fb950; --bad:#f85149; --purple:#a371f7; --accent:#58a6ff; --warn:#d29922; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif; }
+  header { padding:30px 32px 20px; border-bottom:1px solid var(--line); }
+  h1 { margin:0 0 6px; font-size:23px; letter-spacing:-.2px; }
+  h1 span { color:var(--accent); }
+  .sub { color:var(--muted); font-size:13px; }
+  main { padding:24px 32px 70px; max-width:1080px; }
+  h2 { font-size:15px; margin:34px 0 12px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; }
+  .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; }
+  .muted { color:var(--muted); }
+  a { color:var(--accent); text-decoration:none; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:99px; font-size:12px;
+          border:1px solid var(--line); background:#0e141c; }
+  .pill.ok { color:var(--ok); border-color:#1f3a25; background:#0f1a12; }
+  .pill.bad { color:var(--bad); border-color:#3d1d1d; background:#1a0f0f; }
+  .pill.purple { color:var(--purple); border-color:#2c2140; background:#150f20; }
+  .pill.warn { color:var(--warn); border-color:#3b2f16; background:#1a1509; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .card .k { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.6px; }
+  .card .v { font-size:22px; margin-top:6px; font-weight:600; }
+  table { width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line);
+          border-radius:12px; overflow:hidden; }
+  th,td { text-align:left; padding:10px 14px; border-bottom:1px solid var(--line); font-size:14px; vertical-align:top; }
+  th { color:var(--muted); font-weight:500; font-size:12px; text-transform:uppercase; letter-spacing:.5px; }
+  tr:last-child td { border-bottom:none; }
+  .exp { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:12px; }
+  .exp h3 { margin:0 0 6px; font-size:15.5px; }
+  .exp p { margin:0 0 12px; color:var(--muted); font-size:13.5px; }
+  .exp .why { color:#c9d1d9; font-size:13px; margin:10px 0 0; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  button { background:#1f6feb; color:#fff; border:0; border-radius:8px; padding:8px 14px;
+           font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.ghost { background:#161d27; color:var(--text); border:1px solid var(--line); }
+  button:disabled { opacity:.55; cursor:progress; }
+  .out { margin-top:12px; border-top:1px dashed var(--line); padding-top:12px; font-size:13px; }
+  .out .line { margin:3px 0; }
+  .hash { word-break:break-all; color:var(--muted); font-size:11.8px; }
+  pre { margin:8px 0 0; padding:10px 12px; background:#0e141c; border:1px solid var(--line);
+        border-radius:8px; overflow:auto; max-height:190px; font-size:11.8px; }
+  footer { color:var(--muted); font-size:12px; padding:0 32px 40px; }
+  .banner { margin:18px 0 0; padding:12px 16px; border:1px solid #3b2f16; background:#161307;
+            border-radius:10px; color:#e3c07a; font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Qore<span>Guard</span> · attack lab</h1>
+  <div class="sub">Every refusal below is produced by <b>the chain</b> and <b>the deployed contract</b>,
+    in your browser, with no wallet, no key and no install. Each one is an <span class="mono">eth_call</span>:
+    the node executes it and throws the result away, so nothing is spent and nothing is written.</div>
+  <div class="sub" id="status">reading the testnet…</div>
+  <div class="banner">What this page cannot do, by construction: sign. It holds no key, so it can only
+    <i>ask</i> — and you get to watch the treasury say no. The valid path needs a 4,627-byte ML-DSA-87
+    signature from the owner, which no page can invent.</div>
+</header>
+<main>
+  <h2>What the chain says right now</h2>
+  <div class="grid" id="cards"></div>
+  <div id="vendors"></div>
+
+  <h2>Refusal experiments</h2>
+  <div class="row" style="margin-bottom:14px">
+    <button id="run-all">Run all seven</button>
+    <span class="muted" style="font-size:13px">or press one at a time — each shows the calldata it sent.</span>
+  </div>
+  <div id="experiments"></div>
+
+  <h2>The call that would succeed</h2>
+  <div class="exp">
+    <h3>What the owner would have to sign</h3>
+    <p>For the raise-cap action, the contract builds this exact byte string
+      (<span class="mono">adminMessage(action, payload, nonce)</span>) and hands it to the
+      <span class="mono">pqcVerify</span> precompile. It binds the domain, the chain id, this contract,
+      the action, the payload and the nonce — so a signature for one action cannot become another,
+      and one for another deployment cannot be replayed here.</p>
+    <div class="row"><button class="ghost" id="show-message">Ask the contract for it</button></div>
+    <div class="out" id="message-out" hidden></div>
+  </div>
+
+  <h2>The owner's signature, verified in your browser</h2>
+  <div class="exp">
+    <h3>ML-DSA-87 verification, against the key the chain holds</h3>
+    <p>A recorded message signature from the owner's key is checked here with
+      <span class="mono">verifyMessageWithChain</span> from <span class="mono">@qorechain/qoresign/network</span>
+      — the same call a dApp makes after <span class="mono">window.qorex.native.signArbitrary</span>.
+      The ML-DSA-87 key is read from the chain's <span class="mono">pqcKeyStatus</span> precompile
+      (<span class="mono">0x…0a02</span>), the one the contract itself calls.</p>
+    <div class="row">
+      <button id="verify-recorded">Verify the recorded signature</button>
+      <button class="ghost" id="verify-tampered">Verify a copy with one byte changed</button>
+    </div>
+    <div class="out" id="verify-out" hidden></div>
+    <pre id="signed-data"></pre>
+  </div>
+
+  <h2>Also in this repository</h2>
+  <div class="exp">
+    <p style="margin:0">
+      <a href="./index.html">dashboard</a> — the same numbers as this page, plus the journal ·
+      <a href="./qorex.html">QoreX console</a> — sign with your own wallet and verify ·
+      <a href="../docs/DORA-REPORT.md">DORA report</a> ·
+      <a href="../docs/cbom.json">CBOM</a> ·
+      <span class="mono">python verify.py</span> — 39 read-only checks from a clean machine
+    </p>
+  </div>
+</main>
+<footer>QoreChain testnet <span class="mono">qorechain-diana</span> · test tokens only · Apache-2.0 · no key, no wallet, no writes</footer>
+
+<script id="qg-data" type="application/json">__QOREGUARD_DATA__</script>
+<script type="module">
+import { DATA, ethCall, view, encodeCall, decodeRevert, revertDataFrom, chainId, blockNumber,
+         pqcKeyStatus, verifyWithChain, fmtUqor, short } from "./assets/qg.js";
+
+const $ = (sel) => document.querySelector(sel);
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text; return n; };
+const b32 = (text) => "0x" + Array.from(new TextEncoder().encode(text)).map((b) => b.toString(16).padStart(2, "0"))
+  .join("").padEnd(64, "0").slice(0, 64);
+
+// ------------------------------------------------------------------ status --
+(async () => {
+  try {
+    const [cid, block] = await Promise.all([chainId(), blockNumber()]);
+    $("#status").innerHTML = `chain id <span class="mono">${cid}</span> · block
+      <span class="mono">${block.toString()}</span> · contract
+      <span class="mono">${DATA.contract}</span> · owner <span class="mono">${DATA.owner.bech32}</span>`;
+  } catch (err) {
+    $("#status").innerHTML = `<span class="pill bad">RPC unreachable</span> ${err.message}`;
+  }
+})();
+
+// -------------------------------------------------------------- chain state --
+async function loadState() {
+  const [owner, nonce, cap, total, count] = await Promise.all([
+    view("ownerAccount"), view("approvalNonce"), view("treasuryDailyCapUqor"),
+    view("totalSpentUqor"), view("vendorCount"),
+  ]);
+  const cards = [
+    ["Owner account (the only caller)", short(owner[0], 12, 10)],
+    ["Approval nonce", nonce[0].toString()],
+    ["Treasury day cap", `${fmtUqor(cap[0])} QOR`],
+    ["All-time paid", `${fmtUqor(total[0])} QOR`],
+    ["Registered vendors", count[0].toString()],
+  ];
+  $("#cards").innerHTML = "";
+  for (const [k, v] of cards) {
+    const card = el("div", "card");
+    card.append(el("div", "k", k), el("div", "v mono", v));
+    $("#cards").append(card);
+  }
+
+  const rows = [];
+  for (let i = 0n; i < count[0]; i++) {
+    const [id] = await view("vendorIdAt", [i]);
+    const [payee, , perTx, daily, active] = await view("vendor", [id]);
+    const [spent] = await view("spentToday", [id]);
+    rows.push({ id, payee, perTx, daily, active, spent });
+  }
+  const table = el("table");
+  table.innerHTML = `<tr><th>id</th><th>payee</th><th>per-tx cap</th><th>day cap</th>
+    <th>spent today</th><th>state</th></tr>`;
+  for (const r of rows) {
+    const tr = el("tr");
+    tr.innerHTML = `<td class="mono">${r.id}</td><td class="mono">${short(r.payee, 12, 8)}</td>
+      <td class="mono">${fmtUqor(r.perTx)}</td><td class="mono">${fmtUqor(r.daily)}</td>
+      <td class="mono">${fmtUqor(r.spent)}</td>
+      <td>${r.active ? '<span class="pill ok">active</span>' : '<span class="pill bad">inactive</span>'}</td>`;
+    table.append(tr);
+  }
+  $("#vendors").replaceChildren(table);
+  return { nonce: nonce[0], cap, total, rows };
+}
+let state;
+loadState().then((s) => { state = s; }).catch((err) => {
+  $("#vendors").innerHTML = `<div class="banner">Chain reads failed: ${err.message}</div>`;
+});
+
+// -------------------------------------------------------------- experiments --
+const ZERO_SIG = "0x" + "00".repeat(4627); // signature-shaped, and nothing more
+
+async function ownerKey() {
+  const status = await pqcKeyStatus();
+  return status;
+}
+
+const experiments = [
+  {
+    title: "1 · Ask for more than the vendor's per-tx cap",
+    body: "The agent asks vendor 1 for its cap plus 0.05 QOR, and sends the value with it. Gate 2 counts the vendor's own cap first.",
+    build: () => {
+      const v = state.rows[0];
+      const amount = v.perTx + 50000n;
+      return { data: encodeCall("pay", [v.id, amount, b32("lab:over-cap")]), value: amount * 10n ** 12n,
+               expect: "PerVendorTxCapExceeded" };
+    },
+  },
+  {
+    title: "2 · Pay a vendor id nobody registered",
+    body: "Id 99 was never added by a PQ-signed addVendor. The contract has no payee to send to.",
+    build: () => ({ data: encodeCall("pay", [99n, 1000n, b32("lab:unknown")]), value: 1000n * 10n ** 12n,
+                    expect: "UnknownVendor" }),
+  },
+  {
+    title: "3 · Raise the cap with a forged ML-DSA-87 signature",
+    body: "This is the Q-Day attacker: they have the owner's classical key, so they can build and send the call. They do not have the ML-DSA-87 secret key, so all they can attach is 4,627 zero bytes.",
+    build: async () => {
+      const key = await ownerKey();
+      return { data: encodeCall("setTreasuryCap", [999999999n, state.nonce, key.pubkey, ZERO_SIG]), value: 0n,
+               expect: "BadPqcSignature" };
+    },
+  },
+  {
+    title: "4 · Name one amount in the memo, send another",
+    body: "The memo says 0.1 QOR, the call carries 0.05 QOR. Every payment must move exactly what it records, or the audit trail would lie.",
+    build: () => ({ data: encodeCall("pay", [state.rows[0].id, 100000n, b32("lab:value")]),
+                    value: 50000n * 10n ** 12n, expect: "ValueMismatch" }),
+  },
+  {
+    title: "5 · Replay an approval the owner gave earlier",
+    body: "An owner approval is bound to the treasury's approvalNonce. The same signature under the previous nonce is stale, and the contract says by how much.",
+    build: async () => {
+      const key = await ownerKey();
+      const stale = state.nonce > 0n ? state.nonce - 1n : 0n;
+      return { data: encodeCall("payWithApproval", [1n, 1000n, b32("lab:replay"), stale, key.pubkey, ZERO_SIG]),
+               value: 1000n * 10n ** 12n, expect: "StaleApprovalNonce" };
+    },
+  },
+  {
+    title: "6 · Call the treasury from somewhere else",
+    body: "Gate 2's first line: only the owner account may call. A stranger with a funded wallet is still a stranger.",
+    build: () => ({ data: encodeCall("pay", [1n, 1000n, b32("lab:stranger")]), value: 1000n * 10n ** 12n,
+                    from: "0x000000000000000000000000000000000000dEaD", expect: "NotOwnerAccount" }),
+  },
+  {
+    title: "7 · Deactivate a vendor with a one-byte signature",
+    body: "A signature is checked, not counted: the precompile verifies the ML-DSA-87 signature over the exact admin message.",
+    build: async () => {
+      const key = await ownerKey();
+      return { data: encodeCall("setVendorActive", [1n, false, state.nonce, key.pubkey, "0x01"]), value: 0n,
+               expect: "BadPqcSignature" };
+    },
+  },
+];
+
+function renderExperiments() {
+  $("#experiments").innerHTML = "";
+  experiments.forEach((exp, index) => {
+    const box = el("div", "exp");
+    box.append(el("h3", null, exp.title), el("p", null, exp.body));
+    const row = el("div", "row");
+    const run = el("button", null, "Run");
+    const out = el("div", "out");
+    out.hidden = true;
+    run.onclick = () => runExperiment(exp, run, out);
+    row.append(run);
+    box.append(row, out);
+    $("#experiments").append(box);
+    exp._run = run;
+    exp._out = out;
+  });
+}
+
+async function runExperiment(exp, button, out) {
+  button.disabled = true;
+  out.hidden = false;
+  out.replaceChildren(el("div", "muted", "asking the chain…"));
+  try {
+    const call = await exp.build();
+    const raw = await ethCall(call.data, call.value, call.from || DATA.owner.evm);
+    out.replaceChildren(el("div", "line", `returned ${raw} — this experiment was supposed to be refused`));
+  } catch (err) {
+    const hex = revertDataFrom(err);
+    const decoded = decodeRevert(hex);
+    out.replaceChildren();
+    const head = el("div", "line");
+    head.append(el("span", "pill bad", decoded.name),
+      document.createTextNode(`  expected ${exp.expect}${decoded.name === exp.expect ? " — matched" : " — DIFFERENT"}`));
+    out.append(head);
+    if (decoded.args.length) {
+      const args = decoded.args.map((a, i) => {
+        const type = decoded.types[i];
+        if (type === "address") return short(a, 12, 8);
+        if (/^uint/.test(type)) return a.toString();
+        return String(a);
+      });
+      out.append(el("div", "line mono", "(" + args.join(", ") + ")"));
+    }
+    out.append(el("div", "line muted", "calldata"));
+    out.append(el("div", "hash mono", "0x" + callHex(call)));
+    out.append(el("div", "line muted", "revert data"));
+    out.append(el("div", "hash mono", hex));
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function callHex(call) { return call.data.replace(/^0x/, ""); }
+
+$("#run-all").onclick = async () => {
+  if (!state) return;
+  for (const exp of experiments) await runExperiment(exp, exp._run, exp._out);
+};
+
+// --------------------------------------------------------------- admin message --
+$("#show-message").onclick = async () => {
+  const btn = $("#show-message");
+  btn.disabled = true;
+  try {
+    const payload = "0x" + (999999999n).toString(16).padStart(64, "0"); // abi.encode(uint96)
+    const data = encodeCall("adminMessage", [DATA.actions.SET_TREASURY_CAP, payload, state.nonce]);
+    const raw = await ethCall(data);
+    const hex = decodeBytesReturn(raw);
+    const bytes = (hex.length - 2) / 2;
+    const out = $("#message-out");
+    out.hidden = false;
+    out.replaceChildren(
+      el("div", "line", `${bytes} bytes the owner must sign, and the only thing pqcVerify looks at:`),
+      el("div", "hash mono", hex),
+      el("div", "line muted", "domain ‖ chainid ‖ contract ‖ action ‖ payload ‖ nonce"),
+    );
+  } catch (err) {
+    $("#message-out").hidden = false;
+    $("#message-out").textContent = err.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+function decodeBytesReturn(raw) {
+  const body = raw.replace(/^0x/, "");
+  const offset = Number(BigInt("0x" + body.slice(0, 64))) * 2;
+  const len = Number(BigInt("0x" + body.slice(offset, offset + 64)));
+  return "0x" + body.slice(offset + 64, offset + 64 + len * 2);
+}
+
+// --------------------------------------------------------------- verification --
+const record = DATA.console;
+$("#signed-data").textContent = record.data_utf8;
+
+function showVerify(ok, detail) {
+  const out = $("#verify-out");
+  out.hidden = false;
+  out.replaceChildren();
+  const line = el("div", "line");
+  line.append(el("span", ok ? "pill ok" : "pill bad", ok ? "verified" : "refused"));
+  line.append(document.createTextNode("  " + detail));
+  out.append(line);
+}
+
+$("#verify-recorded").onclick = async () => {
+  const btn = $("#verify-recorded");
+  btn.disabled = true;
+  showVerify(true, "reading the owner's ML-DSA-87 key from the chain…");
+  try {
+    const res = await verifyWithChain(record.signer, record.data_utf8, record.signature);
+    showVerify(true, `the owner's ML-DSA-87 signature over these exact bytes verifies; ${record.pq_public_key_len}-byte key, possession proven: ${res.possessionProven}`);
+  } catch (err) {
+    showVerify(false, `${err.code || err.name}: ${err.message || err}`);
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+$("#verify-tampered").onclick = async () => {
+  const btn = $("#verify-tampered");
+  btn.disabled = true;
+  try {
+    const res = await verifyWithChain(record.signer, record.data_utf8 + "!", record.signature);
+    showVerify(true, `accepted — the signature is not bound (possessionProven=${res.possessionProven})`);
+  } catch (err) {
+    showVerify(false, `${err.code || err.name}: ${err.message || err}`);
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+renderExperiments();
+</script>
+</body>
+</html>

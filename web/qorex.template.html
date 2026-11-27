@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QoreGuard · QoreX signing console</title>
+<style>
+  :root { --bg:#0b0f14; --panel:#121821; --line:#1e2733; --text:#e6edf3; --muted:#8b98a5;
+          --ok:#3fb950; --bad:#f85149; --purple:#a371f7; --accent:#58a6ff; --warn:#d29922; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text);
+         font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif; }
+  header { padding:30px 32px 20px; border-bottom:1px solid var(--line); }
+  h1 { margin:0 0 6px; font-size:23px; letter-spacing:-.2px; }
+  h1 span { color:var(--purple); }
+  .sub { color:var(--muted); font-size:13px; }
+  main { padding:24px 32px 70px; max-width:980px; }
+  h2 { font-size:15px; margin:34px 0 12px; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:14px; }
+  .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; }
+  .muted { color:var(--muted); }
+  a { color:var(--accent); text-decoration:none; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:99px; font-size:12px;
+          border:1px solid var(--line); background:#0e141c; }
+  .pill.ok { color:var(--ok); border-color:#1f3a25; background:#0f1a12; }
+  .pill.bad { color:var(--bad); border-color:#3d1d1d; background:#1a0f0f; }
+  .pill.warn { color:var(--warn); border-color:#3b2f16; background:#1a1509; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+  button { background:#8957e5; color:#fff; border:0; border-radius:8px; padding:9px 15px;
+           font-size:13.5px; font-weight:600; cursor:pointer; }
+  button.ghost { background:#161d27; color:var(--text); border:1px solid var(--line); }
+  button:disabled { opacity:.55; cursor:progress; }
+  pre, textarea { width:100%; margin:10px 0 0; padding:12px; background:#0e141c; border:1px solid var(--line);
+        border-radius:8px; color:var(--text); font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+        font-size:12px; overflow:auto; }
+  pre { max-height:230px; }
+  textarea { min-height:120px; resize:vertical; }
+  .out { margin-top:12px; font-size:13px; }
+  .hash { word-break:break-all; color:var(--muted); font-size:11.8px; }
+  ol { margin:8px 0 0 18px; padding:0; color:#c9d1d9; font-size:13.5px; }
+  li { margin:4px 0; }
+  footer { color:var(--muted); font-size:12px; padding:0 32px 40px; }
+  .banner { margin:0 0 14px; padding:12px 16px; border:1px solid #3b2f16; background:#161307;
+            border-radius:10px; color:#e3c07a; font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Qore<span>X</span> · an owner signature the treasury can check</h1>
+  <div class="sub">QoreGuard's README used to say "in production the owner would sign inside QoreX".
+    This page is that step: a browser requests an arbitrary-message signature from the wallet, and the
+    result is verified against the ML-DSA-87 key registered on chain — the same key the treasury
+    contract consults through the <span class="mono">pqcVerify</span> precompile.</div>
+</header>
+<main>
+  <div class="banner" id="wallet">looking for a QoreX wallet in this browser…</div>
+
+  <h2>1 · Connect and sign</h2>
+  <div class="card">
+    <div>Wallet API: <span class="mono">window.qorex.native.signArbitrary(chainId, address, data)</span></div>
+    <div class="muted" style="font-size:13px;margin-top:6px">
+      The wallet shows the full text before approving; the signature covers
+      <span class="mono">"qorechain-msg-v1|" + chainId + "|" + data</span>.</div>
+    <div class="row">
+      <button id="connect">Connect QoreX</button>
+      <button class="ghost" id="sign">Sign with QoreX</button>
+    </div>
+    <div class="out" id="wallet-out" hidden></div>
+  </div>
+
+  <h2>2 · The bytes this page asks to sign</h2>
+  <div class="card">
+    <pre id="data-text"></pre>
+    <div class="row"><button class="ghost" id="edit">Edit the text</button>
+      <button class="ghost" id="reset">Reset</button></div>
+    <div class="out muted" id="data-hex" style="font-size:12px"></div>
+  </div>
+
+  <h2>3 · Verify any signature against the chain</h2>
+  <div class="card">
+    <p class="muted" style="margin:0 0 4px;font-size:13.5px">
+      <span class="mono">verifyMessageWithChain</span> reads the account's ML-DSA-87 key itself and
+      checks both layers of the hybrid signature. Paste a signature JSON from any wallet, or use the
+      recorded one from this repository.</p>
+    <div class="row">
+      <button id="verify-recorded">Verify the recorded owner signature</button>
+      <button class="ghost" id="verify-tampered">Verify it with one byte changed</button>
+    </div>
+    <textarea id="sig" spellcheck="false" aria-label="signature JSON"></textarea>
+    <div class="row"><button class="ghost" id="verify-pasted">Verify the pasted signature</button></div>
+    <div class="out" id="verify-out" hidden></div>
+  </div>
+
+  <h2>What is actually being proved</h2>
+  <div class="card">
+    <ol>
+      <li>The signature is <b>hybrid</b>: secp256k1 (the classical layer a quantum computer breaks)
+        and ML-DSA-87 (FIPS 204). A classical-only signature is refused.</li>
+      <li>The ML-DSA-87 public key is <b>not taken from the page</b> — it is read from
+        <span class="mono">pqcKeyStatus</span>, the precompile the treasury contract calls, so the
+        page cannot substitute a key it controls.</li>
+      <li>The bytes are <b>bound</b>: one changed byte, another chain id, another signer — each is a
+        refusal you can watch.</li>
+      <li>The treasury's own admin actions use the same primitive with a longer message
+        (<span class="mono">adminMessage</span>), so a signature made here cannot be re-used as a
+        payout approval: the domain, action and nonce differ.</li>
+    </ol>
+    <div class="row"><a href="./lab.html">← back to the attack lab</a></div>
+  </div>
+</main>
+<footer>QoreChain testnet <span class="mono">qorechain-diana</span> · test tokens only · Apache-2.0 ·
+  the page holds no key and sends no transaction</footer>
+
+<script id="qg-data" type="application/json">__QOREGUARD_DATA__</script>
+<script type="module">
+import { DATA, pqcKeyStatus, verifyWithChain, short } from "./assets/qg.js";
+
+const $ = (sel) => document.querySelector(sel);
+const record = DATA.console;
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls;
+  if (text !== undefined) n.textContent = text; return n; };
+
+let wallet = null;
+let dataText = record.data_utf8;
+let pastedSignature = record.signature_json;
+
+function show(sel, ok, text) {
+  const out = $(sel);
+  out.hidden = false;
+  out.replaceChildren();
+  const line = el("div", "line");
+  const pill = el("span", ok === null ? "pill warn" : ok ? "pill ok" : "pill bad",
+    ok === null ? "note" : ok ? "verified" : "refused");
+  line.append(pill, document.createTextNode("  " + text));
+  out.replaceChildren(line);
+}
+
+// ------------------------------------------------------------------- wallet --
+function qorex() {
+  const w = window.qorex;
+  if (!w) return null;
+  const native = w.native || w;
+  return typeof native.signArbitrary === "function" ? native : null;
+}
+
+function refreshWalletBanner() {
+  wallet = qorex();
+  const banner = $("#wallet");
+  if (wallet) {
+    banner.innerHTML = `<span class="pill ok">QoreX detected</span> — connect, then sign: your wallet
+      renders the text below and returns a hybrid signature this page can verify.`;
+  } else {
+    banner.innerHTML = `<span class="pill warn">No QoreX wallet in this browser</span> — the signing
+      buttons below stay disabled, which is the honest state. Section 3 still verifies a
+      <b>real</b> ML-DSA-87 signature from the owner's key against the chain, so the verification
+      half is live even without a wallet.`;
+  }
+  $("#sign").disabled = !wallet;
+  $("#connect").disabled = !wallet;
+}
+
+window.addEventListener("qorex#initialized", refreshWalletBanner);
+refreshWalletBanner();
+setTimeout(refreshWalletBanner, 1200);
+
+$("#connect").onclick = async () => {
+  try {
+    const accounts = await wallet.request({ method: "qorex_requestAccounts" });
+    const address = Array.isArray(accounts) ? accounts[0] : accounts;
+    show("#wallet-out", true, `connected: ${short(String(address), 14, 10)} on ${DATA.chain.id}`);
+  } catch (err) {
+    show("#wallet-out", false, `${err.code || err.name}: ${err.message || err}`);
+  }
+};
+
+$("#sign").onclick = async () => {
+  try {
+    const accounts = await wallet.request({ method: "qorex_requestAccounts" });
+    const address = Array.isArray(accounts) ? accounts[0] : accounts;
+    const signature = await wallet.signArbitrary(DATA.chain.id, address, dataText);
+    pastedSignature = typeof signature === "string" ? signature : JSON.stringify(signature);
+    $("#sig").value = pastedSignature;
+    const res = await verifyWithChain(address, dataText, JSON.parse(pastedSignature));
+    show("#wallet-out", true, `signed and verified against the chain key (possessionProven=${res.possessionProven})`);
+  } catch (err) {
+    show("#wallet-out", false, `${err.code || err.name}: ${err.message || err}`);
+  }
+};
+
+// --------------------------------------------------------------------- data --
+function renderData() {
+  $("#data-text").textContent = dataText;
+  const bytes = new TextEncoder().encode(dataText);
+  $("#data-hex").textContent =
+    `${bytes.length} bytes · the wallet signs "qorechain-msg-v1|${DATA.chain.id}|" followed by these bytes`;
+}
+$("#edit").onclick = () => {
+  const next = prompt("Text to sign:", dataText);
+  if (next !== null) { dataText = next; renderData(); }
+};
+$("#reset").onclick = () => { dataText = record.data_utf8; renderData(); };
+renderData();
+$("#sig").value = pastedSignature;
+
+// ------------------------------------------------------------- verification --
+async function verify(data, signature, okMessage) {
+  try {
+    const sig = typeof signature === "string" ? JSON.parse(signature) : signature;
+    const res = await verifyWithChain(record.signer, data, sig);
+    show("#verify-out", true, `${okMessage}; possessionProven=${res.possessionProven}`);
+  } catch (err) {
+    show("#verify-out", false, `${err.code || err.name}: ${err.message || err}`);
+  }
+}
+
+$("#verify-recorded").onclick = async () => {
+  $("#sig").value = record.signature_json;
+  const key = await pqcKeyStatus().catch(() => null);
+  await verify(record.data_utf8, record.signature,
+    `the owner's signature over these exact bytes verifies${key ? ` against the ${key.pubkey.length / 2 - 1}-byte key on chain` : ""}`);
+};
+
+$("#verify-tampered").onclick = () =>
+  verify(record.data_utf8 + "!", record.signature, "accepted — the signature is not bound to the bytes");
+
+$("#verify-pasted").onclick = () =>
+  verify(dataText, $("#sig").value, "the pasted signature verifies for this text under the recorded signer");
+
+(async () => {
+  const key = await pqcKeyStatus().catch(() => null);
+  if (key) {
+    document.querySelector("h1").insertAdjacentHTML("afterend",
+      `<div class="sub">on-chain ML-DSA-87 key: ${key.pubkey.length / 2 - 1} bytes, algorithm ${key.algorithmId},
+        possession proven ${key.proven} · signer ${record.signer}</div>`);
+  }
+})();
+</script>
+</body>
+</html>

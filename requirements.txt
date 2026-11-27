@@ -3,6 +3,7 @@ qorechain-sdk>=0.15.0          # accounts, hybrid signing, authenticator lane, m
 qorechain-qoreseal>=0.1.0      # ML-KEM-1024 invoice archive (agent/qoreguard/sealing.py)
 qorechain-qoresign>=0.2.0      # Sign In With QoreChain approvals (agent/qoreguard/approvals.py)
 qorechain-mcp>=0.1.1           # read-only chain tools over MCP (agent/qoreguard/mcpread.py)
+qorescan>=0.1.0                # CBOM + DORA/NIS2 reports (docs/cbom.json, docs/DORA-REPORT.md)
 # library dependencies used directly
 httpx>=0.27.0
 eth-abi>=5.0.0

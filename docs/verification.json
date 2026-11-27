@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-11-27T14:03:29Z",
+  "forge": "forge Version: 1.10.0",
+  "solc": "0.8.24",
+  "contract_source": "contracts/src/QoreGuardTreasury.sol",
+  "contract_source_sha256": "54568eb9cf6d201c282dd4e40002bc3875560c44229f2330dc33e314dc963769",
+  "contract_source_bytes": 16421,
+  "tests": {
+    "total": 51,
+    "passed": 51,
+    "failed": 0,
+    "invariants": 13,
+    "invariant_names": [
+      "invariant_totalSpentIsTheGhostLedger",
+      "invariant_vendorTotalsSumToTreasuryTotal",
+      "invariant_treasuryDayEqualsVendorDays",
+      "invariant_treasuryDayCapHolds",
+      "invariant_vendorDayCapsHold",
+      "invariant_treasuryHoldsNoValue",
+      "invariant_outcomeMatchesPolicy",
+      "invariant_deactivatedVendorIsNeverPaid",
+      "invariant_strangerCannotChangeState",
+      "invariant_approvalNonceAdvancesOncePerSignedAction",
+      "invariant_registryIsWellFormed",
+      "invariant_onlyRegisteredPayeesHoldFunds",
+      "invariant_ownerIsImmutable"
+    ],
+    "handler_actions": [
+      "pay",
+      "payWithApproval",
+      "setVendorActive",
+      "setVendorCaps",
+      "setTreasuryCap",
+      "addVendor",
+      "attack",
+      "warp"
+    ],
+    "invariant_runs": 96,
+    "invariant_depth": 128,
+    "handler_calls": 12288
+  },
+  "coverage": {
+    "lines": [
+      108,
+      108
+    ],
+    "statements": [
+      141,
+      141
+    ],
+    "branches": [
+      28,
+      28
+    ],
+    "functions": [
+      20,
+      20
+    ]
+  },
+  "mutation": {
+    "total": 19,
+    "killed": 19,
+    "survived": []
+  },
+  "command": "cd contracts && forge test && forge coverage --report lcov --no-match-coverage 'test|mocks|lib'",
+  "mutation_command": "python scripts/mutate.py"
+}

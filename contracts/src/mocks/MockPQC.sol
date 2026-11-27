@@ -20,6 +20,12 @@ contract MockPQCVerify {
     }
 }
 
+/// @notice A payee that refuses every transfer, so the tests can prove the
+///         contract reverts instead of silently losing the payment.
+contract RejectingPayee {
+    // no receive() and no fallback(): a plain call with value fails
+}
+
 contract MockPQCKeys {
     struct Key {
         bool registered;
