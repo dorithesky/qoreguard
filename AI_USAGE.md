@@ -55,12 +55,12 @@ holding the keys that matter.
 
 ## 3. What the AI produced
 
-- `contracts/src/QoreGuardTreasury.sol` (~380 lines) and its mocks.
-- `contracts/test/*.sol`: 51 tests, 13 invariants `scripts/record_tests.py` records, 100 % coverage, 19/19 mutants killed (the AI wrote the mutants; the suite had to kill them).
+- `contracts/src/QoreGuardTreasury.sol` (~410 lines) and its mocks.
+- `contracts/test/*.sol`: 58 tests, 15 invariants `scripts/record_tests.py` records, 100 % coverage, 22/22 mutants killed (the AI wrote the mutants; the suite had to kill them).
 - `agent/qoreguard/`: configuration, chain wrapper, EVM client, ABI encoder,
   planner, agent, CLI, plus the three rails — `sealing.py` (QoreSeal),
   `approvals.py` (QoreSign/SIWQ) and `mcpread.py` (QoreChain MCP) (~1,700 lines).
-- `verify.py`: 40 read-only checks a judge can run without a key, including the two browser surfaces and the CBOM.
+- `verify.py`: 45 read-only checks a judge can run without a key, including the two browser surfaces and the CBOM.
 - The QoreX console was first written against `window.qorex.native.signArbitrary`
   on the assumption that a wallet can sign arbitrary bytes. The vendor's own
   `@qorechain/qorex-types` README says otherwise for the current build

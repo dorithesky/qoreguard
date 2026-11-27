@@ -412,11 +412,30 @@ def cmd_caps(cfg: Settings, args: argparse.Namespace) -> None:
     )
 
 
+def unit_of(invoice) -> str:
+    """One currency label for the invoice, the payment and the receipt."""
+    return "fUSD" if invoice.denom else "QOR"
+
+
+def amount_label(invoice) -> str:
+    """The amount in the unit the invoice is read in: 500 fUSD stays 500 fUSD,
+    and a native invoice's uqor becomes QOR (150000 uqor = 0.150 QOR)."""
+    if invoice.denom:
+        return f"{invoice.amount_uqor} fUSD"
+    return f"{invoice.amount_uqor / 1_000_000:.3f} QOR"
+
+
 def cmd_run(cfg: Settings, args: argparse.Namespace) -> None:
     chain, evm, agent = build(cfg)
     mandate = Mandate.load(args.mandate)
     journal = Journal(ROOT / "demo" / "journal.jsonl")
-    paid = {e["invoice"] for e in journal.entries() if e.get("kind") == "payment" and e.get("chain_success")}
+    # A restart is a new process with the same journal: anything already settled
+    # there — on the contract lane or the token lane — is not attempted again.
+    paid = {
+        e.get("invoice")
+        for e in journal.entries()
+        if e.get("chain_success") and e.get("kind") in {"payment", "token_payment"}
+    }
 
     items = annotate_with_llm(plan(mandate, paid), mandate)
     if getattr(args, "invoice", None):
@@ -424,22 +443,48 @@ def cmd_run(cfg: Settings, args: argparse.Namespace) -> None:
         items = [i for i in items if i.invoice.id in wanted]
     print(f"\n== plan ({len(items)} invoices)")
     for item in items:
-        print(f"   {item.invoice.id:<10} {item.invoice.vendor:<14} {item.invoice.amount_uqor:>8} uqor  "
-              f"{item.action:<5} {item.reason}")
+        route = "native token lane" if item.invoice.denom else "treasury contract"
+        print(f"   {item.invoice.id:<10} {item.invoice.vendor:<14} {amount_label(item.invoice):>10}  "
+              f"{item.action:<5} {item.reason}  [{route}]")
 
     for item in items:
         if item.action != "pay" or item.vendor is None:
             continue
-        print(f"\n-- {item.invoice.id}: {item.invoice.memo}")
-        decision = agent.pay(
-            item.vendor.id,
-            item.vendor.label,
-            item.invoice.amount_uqor,
-            f"{item.invoice.id} {item.invoice.memo}",
-        )
+        inv = item.invoice
+        vendor = item.vendor
+        print(f"\n-- {inv.id}: {inv.memo}")
+        if inv.denom:
+            # A token invoice can never be paid by the QOR contract: it settles
+            # on the native lane, in its own denom, to the vendor's token account.
+            if not vendor.token_account:
+                print(f"   result  SKIPPED — {inv.id} settles in {inv.denom} but {vendor.label} has no token account")
+                continue
+            if args.dry_run:
+                print(f"   route   token {amount_label(inv)} to {vendor.token_account} ({inv.denom})")
+                continue
+            decision = agent.pay_token(
+                vendor.id,
+                vendor.label,
+                inv.amount_uqor,
+                inv.denom,
+                vendor.token_account,
+                f"{inv.id} {inv.memo}",
+            )
+        else:
+            if args.dry_run:
+                print(f"   route   contract pay of {amount_label(inv)} to vendor {vendor.id} ({vendor.payee})")
+                continue
+            decision = agent.pay(
+                vendor.id,
+                vendor.label,
+                inv.amount_uqor,
+                f"{inv.id} {inv.memo}",
+                invoice_key=T.invoice_key(inv.id, vendor.id),
+            )
         print(f"   tx      {decision.tx_hash}")
         print(f"   result  {'PAID' if decision.chain_success else 'REFUSED'} "
               f"{'' if decision.chain_success else '— ' + str(decision.chain_reason)}")
+        print(f"   receipt {inv.id} · {vendor.label} · {amount_label(inv)} · {decision.tx_hash[:16]}…")
         print(f"   intent  {decision.intent.digest[:32]}… signed {len(decision.intent_signature)//2}B")
 
 
@@ -456,11 +501,12 @@ def cmd_approve(cfg: Settings, args: argparse.Namespace) -> None:
 
     nonce = int(contract_view(evm, dep["contract"], T.SEL_APPROVAL_NONCE), 16)
     memo_prefix = f"{invoice.id} {invoice.memo}"
-    # The signature binds the memo commitment the agent will put on chain, so the
-    # owner approves one exact payment, not a shape of payment.
+    # The signature binds the invoice identifier the agent will put on chain, so
+    # the owner approves one exact invoice, at one exact amount, and the
+    # contract can refuse the same invoice a second time.
     intent = agent.build_intent(vendor.id, vendor.label, amount, memo_prefix)
-    intent_memo = intent.onchain_memo
-    payload = T.payload_exception(vendor.id, amount, intent_memo)
+    key = T.invoice_key(invoice.id, vendor.id)
+    payload = T.payload_exception(vendor.id, amount, key)
     sig = agent.owner_sign(T.PAY_WITH_APPROVAL, payload, nonce)
     say(
         "owner approved one payment",
@@ -470,9 +516,11 @@ def cmd_approve(cfg: Settings, args: argparse.Namespace) -> None:
         approval_nonce=nonce,
         signed_message=f"{len(sig.message)}B",
         signature=f"{len(sig.signature)}B ML-DSA-87",
-        memo_commitment=intent_memo,
+        invoice_key=key,
     )
-    decision = agent.pay(vendor.id, vendor.label, amount, memo_prefix, approval=sig, intent=intent)
+    decision = agent.pay(
+        vendor.id, vendor.label, amount, memo_prefix, approval=sig, intent=intent, invoice_key=key
+    )
     print(f"   tx      {decision.tx_hash}")
     print(f"   result  {'PAID (with post-quantum approval)' if decision.chain_success else 'REFUSED — ' + str(decision.chain_reason)}")
 
@@ -590,6 +638,7 @@ def main(argv: list[str] | None = None) -> int:
     r = sub.add_parser("run", help="run the agent over the mandate")
     r.add_argument("--mandate", default=str(MANDATE_PATH))
     r.add_argument("--invoice", action="append", help="only these invoice ids")
+    r.add_argument("--dry-run", action="store_true", help="print the route for each invoice, send nothing")
 
     c = sub.add_parser("caps", help="owner changes a vendor's caps (PQ-signed)")
     c.add_argument("vendor_id", type=int)

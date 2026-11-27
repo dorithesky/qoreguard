@@ -1,0 +1,7 @@
+QoreGuard receipt INV-1016
+vendor       cloud-hosting
+invoice      5 fUSD (5 erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA)
+paid         5 fUSD (5 erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA)
+lane         native token
+tx           90A4F7003F4E6CC653E94006EAC6454D5F5376959ED9B481FAAAF125F234DBAC
+agrees       True

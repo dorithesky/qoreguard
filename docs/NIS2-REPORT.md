@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| CBOM | `urn:uuid:36a41e34-5457-5250-8185-3a61ee7c1167` |
-| Generated | 2026-11-27T13:35:50Z by qorescan 0.1.0 |
+| CBOM | `urn:uuid:d8e714d6-f785-5a9d-a146-398a58bb3edb` |
+| Generated | 2026-11-27T23:23:14Z by qorescan 0.1.0 |
 | Chain | `qorechain-diana` |
 | Scanned | chain, solidity |
 
@@ -35,8 +35,8 @@ NIST IR 8547 deprecates quantum-vulnerable public-key algorithms (RSA, ECDSA, Ed
 |---|---|---|---|---|---|---|
 | ECDSA secp256k1 | signature | - | 0 | not covered (quantum-vulnerable) | Deprecated after 2030, disallowed after 2035 (NIST IR 8547) | `https://api-testnet.qore.host/cosmos/evm/vm/v1/params` (+1 more) |
 | Ed25519 | signature | - | 0 | not covered (quantum-vulnerable) | Deprecated after 2030, disallowed after 2035 (NIST IR 8547) | `https://api-testnet.qore.host/cosmos/base/tendermint/v1beta1/validatorsets/latest?pagination.limit=1000` |
-| ML-DSA-87 | signature | 87 | 5 | FIPS 204 | Not scheduled for deprecation by NIST IR 8547 | `QoreGuardTreasury.sol:30` (+3 more) |
-| Keccak-256 | hash | 256 | not defined | not applicable (symmetric or hash) | Not a NIST-standardised algorithm; not scheduled by NIST IR 8547 | `QoreGuardTreasury.sol:40` (+14 more) |
+| ML-DSA-87 | signature | 87 | 5 | FIPS 204 | Not scheduled for deprecation by NIST IR 8547 | `QoreGuardTreasury.sol:38` (+3 more) |
+| Keccak-256 | hash | 256 | not defined | not applicable (symmetric or hash) | Not a NIST-standardised algorithm; not scheduled by NIST IR 8547 | `QoreGuardTreasury.sol:48` (+14 more) |
 
 ## Keys
 
@@ -60,7 +60,7 @@ QoreScan records public keys and key types only; it never reads private key valu
 | `chain:pqc:min-security-level` | 5 |
 | `chain:pqc:pqc-primary` | true |
 | `chain:protocol-feature` | pqc-sign-bytes-v2; evm-pqc-authorisation-window; pqc-ecdsa-pubkey-validation; pqc-keyed-account-maintenance-hybrid; pqc-registration-integrity; pqc-rotation-replay-guard; pqc-algorithm-governance-guards; pqc-hybrid-single-extension; pqc-keyless-extension-closed; evm-pqc-window-targets; pqc-possession-flag; pqc-kem-registry; pqc-rotate-key-size-check; pqc-verify-once-per-signer; pqc-multisig; pqc-verify-gas-calibrated; pqc-consent-authz-limiter; pqc-consent-outer-signer; pqc-rotation-ends-evm-consent; pqc-degenerate-key-refused; svm-pqc-key-lane-gated; pqc-registration-ends-evm-consent; pqc-consent-own-message; svm-pqc-key-for-wallets; svm-pqc-authorisation-window; qcb-pqc-submitter; pqc-key-change-clears-evm-delegation; pqc-svm-window-key-proof; pqc-registration-ends-svm-window; pqc-hybrid-embedded-key-degenerate; qcb-pqc-submitter-own-message; pqc-key-registration-own-message; pqc-verify-empty-message |
-| `chain:protocol-features` | 353 enabled at height 10851825 (33 PQC-related listed) |
+| `chain:protocol-features` | 353 enabled at height 10876570 (33 PQC-related listed) |
 | `chain:rest` | https://api-testnet.qore.host |
 
 ## Sources

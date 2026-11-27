@@ -16,7 +16,7 @@ account: invoices archived **encrypted to the owner's ML-KEM-1024 key**
 (QoreSeal), over-cap payments approved by the owner as a **Sign-In-With-QoreChain
 signature** verified against the on-chain ML-DSA-87 key (QoreSign), and a
 **stablecoin invoice settled in fUSD** by the same agent under the same spending
-rule (test tokens). `python verify.py` re-checks all of it read-only: **40 checks,
+rule (test tokens). `python verify.py` re-checks all of it read-only: **45 checks,
 no keys, no writes**. Two static pages let a judge press the refusals in a
 browser with no wallet: [`web/lab.html`](https://dorithesky.github.io/qoreguard/web/lab.html)
 and the [`QoreX signing console`](https://dorithesky.github.io/qoreguard/web/qorex.html).
@@ -52,16 +52,17 @@ and the [`QoreX signing console`](https://dorithesky.github.io/qoreguard/web/qor
 
 | | |
 | --- | --- |
-| Contract | [`0xa437ca5360214d4225ab3323da8f72db99250d92`](https://explore.qore.network/address/0xa437ca5360214d4225ab3323da8f72db99250d92) on `qorechain-diana` |
+| Contract | [`0x3e9f072ffb0dc2cc07e4d5829a9f152556020a4a`](https://explore.qore.network/address/0x3e9f072ffb0dc2cc07e4d5829a9f152556020a4a) on `qorechain-diana` |
 | Owner (eth-native) | `qor1qj002t0yrrwud08geqww0r5f56tgu09rqjxqcd` / `0x049Ef52DE418DDC6Bce8c81ce78E89A6968e3Ca3` |
 | Relayer (native) | `qor1zcsp7xup7y08czmc9z563x0qk3q6sm5827ftf8` |
 | Vendors | `0x305e5935929844bECA43aB6376226a7916A2d129`, `0xdB4a4925451FbCa4183Ea435ef29E4EF24fCF07D` |
-| Payments settled | 5 QOR payments (1.25 QOR all-time) **+ 1 fUSD invoice (500 fUSD)** |
-| Policy refusals on chain | 5 (vendor per-tx ×2, chain per-tx, vendor daily, tampered invoice stopped off-chain) |
+| Payments settled | 7 QOR payments (1.9 QOR across two deployments) **+ 2 fUSD invoices (505 fUSD)** |
+| Policy refusals on chain | 9 (vendor per-tx ×2, chain per-tx, vendor daily, tampered invoice stopped off-chain, **4 × `InvoiceAlreadyPaid`**) |
+| Invoice guard | `paidInvoices` in the contract: the same invoice settles once on either lane — INV-1014 and INV-1015 were each requested twice per lane and paid once |
 | Sealed invoices | 10 envelopes, archive digest committed on chain (`qg:seal-archive:v1:19527ac1…`) |
 | Owner approval | SIWQ message verified against the on-chain ML-DSA-87 key, then paid on chain |
 | Ship Weeks | 4/4 badges (first hybrid tx, first swap in a pool, first QoreSeal key, first PQC-checking contract) |
-| Tests | **51 Foundry tests**, **13 invariants** over an 8-action handler, **100 %** of lines, statements, branches and functions, **19/19 mutants killed** (`docs/verification.json`) |
+| Tests | **58 Foundry tests**, **15 invariants** over a 9-action handler, **100 %** of lines, statements, branches and functions, **22/22 mutants killed** (`docs/verification.json`) |
 | Inventory | [`docs/cbom.json`](docs/cbom.json) — QoreScan CycloneDX 1.6 CBOM, with [`docs/DORA-REPORT.md`](docs/DORA-REPORT.md) and [`docs/NIS2-REPORT.md`](docs/NIS2-REPORT.md) |
 | CI | `.github/workflows/daily-verify.yml` — every day, `forge test` + `python verify.py` on a machine we do not control, with no secret configured |
 | Evidence | [`docs/EVIDENCE.md`](docs/EVIDENCE.md) — generated from the chain · [`docs/JUDGES.md`](docs/JUDGES.md) — a 5-minute tour |
@@ -76,6 +77,7 @@ and the [`QoreX signing console`](https://dorithesky.github.io/qoreguard/web/qor
 | The owner's classical key is leaked (Q-Day) | It cannot open an EVM window (that needs a hybrid signature) and cannot change the policy (that needs an ML-DSA-87 signature); gate 1's rule stays in force. |
 | The relayer is malicious | It can only submit; every payment carries the agent's own signature over `evmAuthSignBytesV2`, bound to chain, account, target, value, calldata, nonce and gas limit. |
 | A signature is replayed | The authenticator nonce is the chain's per-key counter, and every admin signature binds a monotonic `approvalNonce`. |
+| The same invoice is paid twice (a retry, two agents, a restart) | Gate 2: `pay` and `payWithApproval` share one `paidInvoices` record keyed by the invoice id; the second attempt reverts `InvoiceAlreadyPaid` before any cap or signature is considered. The agent's journal skips a settled invoice on restart as well. |
 
 ## Beyond payments: the three other rails
 
@@ -94,7 +96,7 @@ without credentials — and none of those tools can write.
 
 | Surface | What it does | Why it is not a mock |
 | --- | --- | --- |
-| [`web/lab.html`](https://dorithesky.github.io/qoreguard/web/lab.html) | seven refusal experiments, each an `eth_call` from the page: over-cap, unknown vendor, forged ML-DSA-87 signature, memo ≠ value, stale approval nonce, a non-owner sender, a one-byte signature | the page holds **no key**; the revert comes back from the deployed contract, decoded by selector |
+| [`web/lab.html`](https://dorithesky.github.io/qoreguard/web/lab.html) | eight refusal experiments, each an `eth_call` from the page: over-cap, unknown vendor, forged ML-DSA-87 signature, memo ≠ value, stale approval nonce, a non-owner sender, a one-byte signature, **an invoice that is already settled** | the page holds **no key**; the revert comes back from the deployed contract, decoded by selector |
 | [`web/qorex.html`](https://dorithesky.github.io/qoreguard/web/qorex.html) | detects QoreX with `@qorechain/qorex-types`, reads the account and its on-chain ML-DSA-87 status with `native.getKey`, asks the wallet to sign, and verifies any signature with `verifyMessageWithChain` | the key is read from the `pqcKeyStatus` precompile (`0x…0a02`) that the contract itself calls; one changed byte is refused; and the wallet's refusal of `signArbitrary` is reported verbatim rather than papered over |
 
 Neither page can sign, so neither can move money. They exist to make the
@@ -137,8 +139,8 @@ reports cite the same CBOM serial and list the same algorithms.
 ## Repository layout
 
 ```
-verify.py             read-only re-check of everything below (40 checks, no keys)
-contracts/            Foundry project: treasury, mocks, 51 tests (13 invariants)
+verify.py             read-only re-check of everything below (45 checks, no keys)
+contracts/            Foundry project: treasury, mocks, 58 tests (15 invariants)
 agent/qoreguard/      chain, evm, treasury ABI, planner, agent, CLI,
                       sealing (QoreSeal), approvals (QoreSign/SIWQ), mcpread (MCP)
 demo/                 mandate, signed invoices, journal, p1.json, sealed/ envelopes,
@@ -200,15 +202,15 @@ authenticator nonce, and the contract's vendors, caps and spend ledger.
 ```bash
 cd contracts
 forge install foundry-rs/forge-std  # once
-forge test                          # 51 tests: policy, PQ gate, encoding parity,
-                                    # fuzz, and 13 invariants over an 8-action handler
+forge test                          # 58 tests: policy, PQ gate, invoice guard, encoding parity,
+                                    # fuzz, and 15 invariants over a 9-action handler
 forge coverage --report summary --no-match-coverage "test|mocks|lib"   # 100/100/100/100
-python scripts/mutate.py            # 19 mutants, all must be killed
+python scripts/mutate.py            # 22 mutants, all must be killed
 python scripts/record_tests.py      # writes docs/verification.json (source digest + results)
 ```
 
 ```bash
-bash scripts/local_integration.sh   # 12 checks against anvil, precompiles mocked
+bash scripts/local_integration.sh   # 18 checks against anvil, precompiles mocked
 ```
 
 The Foundry tests etch stand-ins for the two precompiles at their real

@@ -2,10 +2,10 @@
   "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:36a41e34-5457-5250-8185-3a61ee7c1167",
+  "serialNumber": "urn:uuid:d8e714d6-f785-5a9d-a146-398a58bb3edb",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-27T13:35:50Z",
+    "timestamp": "2026-11-27T23:23:14Z",
     "tools": {
       "components": [
         {
@@ -184,7 +184,7 @@
       },
       {
         "name": "qorescan:chain:protocol-features",
-        "value": "353 enabled at height 10851825 (33 PQC-related listed)"
+        "value": "353 enabled at height 10876570 (33 PQC-related listed)"
       },
       {
         "name": "qorescan:chain:pqc:hybrid-signature-mode",
@@ -296,7 +296,7 @@
           {
             "location": "https://api-testnet.qore.host/cosmos/base/tendermint/v1beta1/validatorsets/latest?pagination.limit=1000",
             "symbol": "validators[].pub_key",
-            "additionalContext": "4 active validators with /cosmos.crypto.ed25519.PubKey consensus keys at height 10851826"
+            "additionalContext": "4 active validators with /cosmos.crypto.ed25519.PubKey consensus keys at height 10876571"
           }
         ]
       },
@@ -345,79 +345,79 @@
         "occurrences": [
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 40,
+            "line": 48,
             "symbol": "keccak256",
             "additionalContext": "Keccak-256 hash"
           },
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 41,
+            "line": 49,
             "symbol": "keccak256",
             "additionalContext": "Keccak-256 hash"
           },
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 42,
+            "line": 50,
             "symbol": "keccak256",
             "additionalContext": "Keccak-256 hash"
           },
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 43,
+            "line": 51,
             "symbol": "keccak256",
             "additionalContext": "Keccak-256 hash"
           },
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 44,
+            "line": 52,
             "symbol": "keccak256",
             "additionalContext": "Keccak-256 hash"
           },
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 179,
+            "line": 207,
             "symbol": "keccak256",
             "additionalContext": "Keccak-256 hash"
           },
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 212,
+            "line": 242,
             "symbol": "keccak256",
             "additionalContext": "Keccak-256 hash"
           },
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 235,
+            "line": 265,
             "symbol": "keccak256",
             "additionalContext": "Keccak-256 hash"
           },
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 251,
+            "line": 281,
             "symbol": "keccak256",
             "additionalContext": "Keccak-256 hash"
           },
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 264,
+            "line": 294,
             "symbol": "keccak256",
             "additionalContext": "Keccak-256 hash"
           },
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 315,
+            "line": 345,
             "symbol": "keccak256",
             "additionalContext": "Keccak-256 hash"
           },
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 336,
+            "line": 366,
             "symbol": "keccak256",
             "additionalContext": "Keccak-256 hash"
           },
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 374,
+            "line": 404,
             "symbol": "keccak256",
             "additionalContext": "Keccak-256 hash"
           },
@@ -480,13 +480,13 @@
         "occurrences": [
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 30,
+            "line": 38,
             "symbol": "pqcVerify",
             "additionalContext": "QoreChain pqcVerify precompile (0x0A01): ML-DSA-87 signature verification"
           },
           {
             "location": "QoreGuardTreasury.sol",
-            "line": 31,
+            "line": 39,
             "symbol": "pqcKeyStatus",
             "additionalContext": "QoreChain pqcKeyStatus precompile (0x0A02): reads an account's registered ML-DSA-87 key"
           },
@@ -561,7 +561,7 @@
           {
             "location": "https://api-testnet.qore.host/cosmos/base/tendermint/v1beta1/validatorsets/latest?pagination.limit=1000",
             "symbol": "validators[].pub_key",
-            "additionalContext": "4 active validators with /cosmos.crypto.ed25519.PubKey consensus keys at height 10851826"
+            "additionalContext": "4 active validators with /cosmos.crypto.ed25519.PubKey consensus keys at height 10876571"
           }
         ]
       },

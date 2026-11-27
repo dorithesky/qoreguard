@@ -29,6 +29,8 @@ from qoreguard.evm import Evm  # noqa: E402
 DEPLOYMENT = Path(os.environ.get("QOREGUARD_DEPLOYMENT", str(ROOT / ".keys" / "deployment.json")))
 JOURNAL = Path(os.environ.get("QOREGUARD_JOURNAL", str(ROOT / "demo" / "journal.jsonl")))
 INVOICES = Path(os.environ.get("QOREGUARD_INVOICES", str(ROOT / "demo" / "invoices.json")))
+ADDRESSES = Path(os.environ.get("QOREGUARD_ADDRESSES", str(ROOT / "demo" / "addresses.json")))
+RECEIPTS = Path(os.environ.get("QOREGUARD_RECEIPTS", str(ROOT / "demo" / "receipts.json")))
 OUT = Path(os.environ.get("QOREGUARD_OUT", str(ROOT / "web" / "index.html")))
 
 EV_VENDOR_PAID = keccak(text="VendorPaid(uint256,address,uint256,bytes32,uint256,uint256)")
@@ -41,6 +43,17 @@ TOKEN_SYMBOLS = {1: "cloud-hosting", 2: "api-credits"}
 
 def qor(uqor: int | str) -> str:
     return f"{int(uqor) / 1_000_000:.3f}"
+
+
+def amount_in(amount: int | str, denom: str | None) -> str:
+    """One amount, in the currency the invoice is written in.
+
+    A token invoice is never converted to QOR: 500 fUSD is 500 fUSD, and showing
+    it as 0.001 QOR was exactly the bug this function exists to prevent.
+    """
+    if denom:
+        return f"{int(amount)} fUSD"
+    return f"{qor(amount)} QOR"
 
 
 #: The public EVM RPC refuses a very wide eth_getLogs range, so it is walked
@@ -85,6 +98,15 @@ def main() -> int:
     contract = dep["contract"]
     from_block = max(int(dep.get("block", 0)) - 1, 0)
 
+    addresses = json.loads(ADDRESSES.read_text()) if ADDRESSES.exists() else {}
+    #: Every deployment the project has on chain, labelled in the ledger so a
+    #: payment made before the invoice guard (v1) is never confused with one the
+    #: guard covers (v2).
+    deployments = {contract.lower(): "current"}
+    for prev in addresses.get("previous_deployments", []):
+        deployments[prev["contract"].lower()] = prev.get("label", "earlier")
+    token_denom = (addresses.get("token") or {}).get("denom", "")
+
     def view(selector: bytes, types=None, args=None) -> int:
         out = evm.eth_call(contract, selector + (abi_encode_args(types, args) if types else b""))
         return int(out, 16) if out and out != "0x" else 0
@@ -100,6 +122,7 @@ def main() -> int:
     total = view(T.SEL_TOTAL_SPENT)
     nonce = view(T.SEL_APPROVAL_NONCE)
     count = view(T.SEL_VENDOR_COUNT)
+    settled_invoices = view(T.SEL_SETTLED_INVOICE_COUNT)
 
     vendors = []
     for i in range(count):
@@ -144,6 +167,7 @@ def main() -> int:
                 "invoice": e.get("invoice", ""),
                 "unit": "fUSD" if token else "QOR",
                 "raw": e.get("amount", e.get("amount_uqor", 0)) if token else e.get("amount_uqor", 0),
+                "deployment": deployments.get((e.get("contract") or "").lower(), "earlier"),
             }
         )
 
@@ -179,6 +203,9 @@ def main() -> int:
 
     invoices_path = INVOICES
     invoices = json.loads(invoices_path.read_text())["invoices"] if invoices_path.exists() else []
+    invoice_denoms = {i["id"]: i.get("denom") or "" for i in invoices}
+    receipts_doc = json.loads(RECEIPTS.read_text()) if RECEIPTS.exists() else {"receipts": []}
+    receipts = receipts_doc.get("receipts", [])
 
     # The second run's rails (QoreSeal archive, QoreSign approval, fUSD settlement).
     p1_path = ROOT / "demo" / "p1.json"
@@ -255,12 +282,16 @@ def main() -> int:
         spent=spent,
         spent_pct=min(100, round(spent * 100 / cap, 1)) if cap else 0,
         total=total,
+        settled_invoices=settled_invoices,
         nonce=nonce,
         vendor_rows="".join(vendor_row(v) for v in vendors),
         payment_rows="".join(payment_row(p) for p in payments),
         admin_rows="".join(admin_row(a) for a in admin_events) or "<tr><td colspan='4' class='muted'>no admin events</td></tr>",
-        refusal_rows="".join(refusal_row(r) for r in refusals) or "<tr><td colspan='4' class='muted'>no refusals recorded</td></tr>",
+        refusal_rows="".join(refusal_row(r, invoice_denoms) for r in refusals) or "<tr><td colspan='4' class='muted'>no refusals recorded</td></tr>",
         invoice_rows="".join(invoice_row(i) for i in invoices),
+        receipt_rows="".join(receipt_row(r) for r in receipts) or "<tr><td colspan='6' class='muted'>run scripts/make_receipts.py to derive receipts from the journal</td></tr>",
+        receipts_ok=sum(1 for r in receipts if r.get("matches_invoice")),
+        receipts_total=len(receipts),
         rail_rows="".join(rail_row(x) for x in rails) or "<tr><td colspan='5' class='muted'>no extra rails recorded</td></tr>",
         sealed_count=len(sealed_index),
         archive_digest=(p1.get("seal", {}).get("archive_digest", "")[:16] + "…") if p1.get("seal") else "—",
@@ -295,6 +326,8 @@ def payment_row(p: dict) -> str:
     unit = p.get("unit", "QOR")
     amount = str(p.get("raw", p["amount"])) + " fUSD" if unit == "fUSD" else qor(p["amount"]) + " QOR"
     tone = "ok" if p["kind"] == "agent" else "purple"
+    deployment = p.get("deployment", "earlier")
+    dep_cls = "ok" if deployment == "current" else "muted"
     return f"""
       <tr>
         <td class="mono">{p.get('invoice','')}</td>
@@ -302,7 +335,24 @@ def payment_row(p: dict) -> str:
         <td>{p['vendor']}</td>
         <td class="num">{amount}</td>
         <td class="mono muted">{p['memo']}</td>
+        <td><span class="pill {dep_cls}">{deployment}</span></td>
         <td class="mono"><a href="https://explore.qore.network/tx/{p['tx']}" target="_blank" rel="noreferrer">{p['tx'][:14]}…</a></td>
+      </tr>"""
+
+
+def receipt_row(r: dict) -> str:
+    ok = bool(r.get("matches_invoice"))
+    cls = "ok" if ok else "bad"
+    label = "agrees" if ok else "differs"
+    return f"""
+      <tr>
+        <td class="mono">{r['invoice']}</td>
+        <td>{r['vendor']}</td>
+        <td class="num">{r['invoice_amount']} {r['invoice_currency']}</td>
+        <td class="num">{r['paid_amount']} {r['paid_currency']}</td>
+        <td>{r['lane']}</td>
+        <td><span class="pill {cls}">{label}</span></td>
+        <td class="mono"><a href="https://explore.qore.network/tx/{r['tx']}" target="_blank" rel="noreferrer">{str(r['tx'])[:14]}…</a></td>
       </tr>"""
 
 
@@ -316,12 +366,13 @@ def admin_row(a: dict) -> str:
       </tr>"""
 
 
-def refusal_row(r: dict) -> str:
+def refusal_row(r: dict, denoms: dict[str, str] | None = None) -> str:
     reason = r["reason"] or ""
+    denom = (denoms or {}).get(r["invoice"] or "", "")
     return f"""
       <tr>
         <td>{r['invoice'] or '—'}</td>
-        <td class="num">{qor(r['amount'] or 0)} QOR</td>
+        <td class="num">{amount_in(r['amount'] or 0, denom)}</td>
         <td class="why">{reason[:160]}</td>
         <td class="mono">{('0x' + r['tx'][:12] + '…') if r['tx'] else '—'}</td>
       </tr>"""
@@ -331,11 +382,12 @@ def invoice_row(i: dict) -> str:
     tampered = bool(i.get("tamper_note"))
     status = "tampered — refused" if tampered else "signed"
     cls = "bad" if tampered else "ok"
+    amount = amount_in(i["amount_uqor"], i.get("denom"))
     return f"""
       <tr>
         <td class="mono">{i['id']}</td>
         <td>{i['vendor']}</td>
-        <td class="num">{qor(i['amount_uqor'])} QOR</td>
+        <td class="num">{amount}</td>
         <td>{i['memo']}</td>
         <td><span class="pill {cls}">{status}</span></td>
       </tr>"""
@@ -417,7 +469,8 @@ TEMPLATE = """<!doctype html>
       <div class="v">{spent} <small>uqor of {cap}</small></div>
       <div class="bar"><span style="width:{spent_pct}%"></span></div>
     </div>
-    <div class="card"><div class="k">All-time paid</div><div class="v">{total} <small>uqor</small></div></div>
+    <div class="card"><div class="k">All-time paid (this contract)</div><div class="v">{total} <small>uqor</small></div></div>
+    <div class="card"><div class="k">Settled invoices</div><div class="v">{settled_invoices} <small>one payment each</small></div></div>
     <div class="card"><div class="k">Payments</div><div class="v">{payment_count}</div></div>
     <div class="card"><div class="k">Sealed invoices</div><div class="v">{sealed_count} <small>ML-KEM-1024</small></div></div>
     <div class="card"><div class="k">Approval nonce</div><div class="v">{nonce} <small>PQ-signed actions</small></div></div>
@@ -439,9 +492,20 @@ TEMPLATE = """<!doctype html>
 
   <h2>Ledger — payments the agent settled</h2>
   <table>
-    <thead><tr><th>Invoice</th><th>Path</th><th>Vendor</th><th class="num">Amount</th><th>Memo commitment</th><th>Transaction</th></tr></thead>
+    <thead><tr><th>Invoice</th><th>Path</th><th>Vendor</th><th class="num">Amount</th><th>Memo commitment</th><th>Deployment</th><th>Transaction</th></tr></thead>
     <tbody>{payment_rows}</tbody>
   </table>
+  <div class="sub" style="margin-top:8px">The <span class="mono">current</span> deployment pays each invoice once, on either lane:
+    `pay` and `payWithApproval` share the contract's `paidInvoices` record. Rows marked
+    <span class="mono">first run</span> settled on the earlier deployment, before the guard existed, and stay on chain as history.</div>
+
+  <h2>Receipts — the invoice, the payment, and whether they agree</h2>
+  <table>
+    <thead><tr><th>Invoice</th><th>Vendor</th><th class="num">Invoice says</th><th class="num">Chain paid</th><th>Lane</th><th>Result</th><th>Transaction</th></tr></thead>
+    <tbody>{receipt_rows}</tbody>
+  </table>
+  <div class="sub" style="margin-top:8px">{receipts_ok}/{receipts_total} receipts carry the invoice's own currency and amount —
+    <span class="mono">python scripts/make_receipts.py</span> derives them from the signed invoice and the journal.</div>
 
   <h2>Owner actions verified on chain (pqcVerify)</h2>
   <table>

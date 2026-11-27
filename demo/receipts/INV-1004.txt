@@ -1,0 +1,7 @@
+QoreGuard receipt INV-1004
+vendor       api-credits
+invoice      0.250 QOR (250000 uqor)
+paid         0.250 QOR (250000 uqor)
+lane         treasury contract
+tx           BA1A3BC0A8A19B5A8504EED42E8F2FD3A814B89D3E0EFE1DBB48FDC329E13A8E
+agrees       True

@@ -23,6 +23,14 @@ pragma solidity ^0.8.24;
 ///         forwarded to the vendor in the same transaction, so the treasury
 ///         stays in the owner's account and the chain sees - and bounds - the
 ///         actual outflow on every call.
+///
+///         Invoice idempotency is on chain too: `pay` and `payWithApproval`
+///         share one `paidInvoices` record keyed by the invoice's identifier,
+///         check it before moving value and write it before returning. Two
+///         agents racing on the same invoice, a client that retries after a
+///         timeout, or an app that restarts mid-run can therefore settle that
+///         invoice exactly once; the second attempt reverts with
+///         `InvoiceAlreadyPaid`.
 contract QoreGuardTreasury {
     // ------------------------------------------------------------------ //
     // QoreChain post-quantum precompiles (testnet qorechain-diana)
@@ -66,6 +74,15 @@ contract QoreGuardTreasury {
     /// @notice Monotonic counter bound into every owner signature (replay guard).
     uint256 public approvalNonce;
 
+    /// @notice Invoice settlement record shared by both payment lanes: the
+    ///         invoice identifier (a bytes32 that commits to the vendor and the
+    ///         invoice id) maps to "already paid". Written only together with a
+    ///         successful transfer, read before every payment.
+    mapping(bytes32 => bool) public paidInvoices;
+
+    /// @notice How many distinct invoices this treasury has settled.
+    uint256 public settledInvoiceCount;
+
     // ------------------------------------------------------------------ //
     // Events: the audit trail a dashboard or an auditor reads back.
     // ------------------------------------------------------------------ //
@@ -73,7 +90,7 @@ contract QoreGuardTreasury {
         uint256 indexed vendorId,
         address indexed payee,
         uint256 amountUqor,
-        bytes32 memoHash,
+        bytes32 indexed invoiceKey,
         uint256 dayIndex,
         uint256 daySpentUqor
     );
@@ -81,7 +98,7 @@ contract QoreGuardTreasury {
         uint256 indexed vendorId,
         address indexed payee,
         uint256 amountUqor,
-        bytes32 memoHash,
+        bytes32 indexed invoiceKey,
         uint256 approvalNonce,
         uint256 dayIndex
     );
@@ -108,6 +125,7 @@ contract QoreGuardTreasury {
     error TransferFailed(address payee, uint256 amountWei);
     error ZeroAmount();
     error ZeroPayee();
+    error InvoiceAlreadyPaid(bytes32 invoiceKey);
 
     constructor(address ownerAccount_, uint96 treasuryDailyCapUqor_) {
         if (ownerAccount_ == address(0)) revert NotOwnerAccount(address(0));
@@ -124,11 +142,14 @@ contract QoreGuardTreasury {
     // Agent lane: the only call the agent's linked key may make
     // ------------------------------------------------------------------ //
 
-    /// @notice Pay a registered vendor inside every cap.
+    /// @notice Pay a registered vendor inside every cap, once per invoice.
     /// @param vendorId id assigned by the owner in a PQ-signed `addVendor`
     /// @param amountUqor amount in uqor (1 QOR = 1e6); must equal msg.value/1e12
-    /// @param memoHash keccak256 of the human-readable memo, for the audit trail
-    function pay(uint256 vendorId, uint256 amountUqor, bytes32 memoHash)
+    /// @param invoiceKey keccak256 of the invoice identifier the payment
+    ///        settles (`qg-inv:v1:<vendorId>:<invoiceId>`). The same key is
+    ///        what `payWithApproval` checks, so the invoice is paid once no
+    ///        matter which lane is used, or how many times either is tried.
+    function pay(uint256 vendorId, uint256 amountUqor, bytes32 invoiceKey)
         external
         payable
         onlyOwnerAccount
@@ -139,6 +160,7 @@ contract QoreGuardTreasury {
         Vendor storage v = _vendors[vendorId];
         if (v.payee == address(0)) revert UnknownVendor(vendorId);
         if (!v.active) revert VendorInactive(vendorId);
+        if (paidInvoices[invoiceKey]) revert InvoiceAlreadyPaid(invoiceKey);
         if (amountUqor > v.perTxCapUqor) revert PerVendorTxCapExceeded(amountUqor, v.perTxCapUqor);
 
         uint256 day = block.timestamp / 1 days;
@@ -148,11 +170,13 @@ contract QoreGuardTreasury {
         uint256 treasuryDayAfter = uint256(spentOnDayUqor[day]) + amountUqor;
         if (treasuryDayAfter > treasuryDailyCapUqor) revert TreasuryDayCapExceeded(treasuryDayAfter, treasuryDailyCapUqor);
 
+        paidInvoices[invoiceKey] = true;
+        settledInvoiceCount += 1;
         spentOnDayUqor[_vendorDayKey(vendorId, day)] = uint96(vendorDayAfter);
         spentOnDayUqor[day] = uint96(treasuryDayAfter);
         totalSpentUqor += amountUqor;
 
-        emit VendorPaid(vendorId, v.payee, amountUqor, memoHash, day, treasuryDayAfter);
+        emit VendorPaid(vendorId, v.payee, amountUqor, invoiceKey, day, treasuryDayAfter);
 
         (bool ok,) = payable(v.payee).call{value: msg.value}("");
         if (!ok) revert TransferFailed(v.payee, msg.value);
@@ -161,10 +185,13 @@ contract QoreGuardTreasury {
     /// @notice Exception path: a payment above a vendor cap that the owner
     ///         approved with a fresh ML-DSA-87 signature over exactly these
     ///         arguments. The agent can submit it, but can never create it.
+    ///         The invoice guard is the same one `pay` uses, and it is checked
+    ///         before the signature: an invoice that is already settled stays
+    ///         settled even under a fresh owner approval.
     function payWithApproval(
         uint256 vendorId,
         uint256 amountUqor,
-        bytes32 memoHash,
+        bytes32 invoiceKey,
         uint256 approvalNonce_,
         bytes calldata pqcPubkey,
         bytes calldata pqcSignature
@@ -175,8 +202,9 @@ contract QoreGuardTreasury {
         Vendor storage v = _vendors[vendorId];
         if (v.payee == address(0)) revert UnknownVendor(vendorId);
         if (!v.active) revert VendorInactive(vendorId);
+        if (paidInvoices[invoiceKey]) revert InvoiceAlreadyPaid(invoiceKey);
 
-        bytes32 payloadHash = keccak256(abi.encode(vendorId, amountUqor, memoHash));
+        bytes32 payloadHash = keccak256(abi.encode(vendorId, amountUqor, invoiceKey));
         _requireOwnerSignature(PAY_WITH_APPROVAL, payloadHash, approvalNonce_, pqcPubkey, pqcSignature);
 
         uint256 day = block.timestamp / 1 days;
@@ -184,10 +212,12 @@ contract QoreGuardTreasury {
         // not a way to lift the budget the owner set for the whole day.
         uint256 treasuryDayAfter = uint256(spentOnDayUqor[day]) + amountUqor;
         if (treasuryDayAfter > treasuryDailyCapUqor) revert TreasuryDayCapExceeded(treasuryDayAfter, treasuryDailyCapUqor);
+        paidInvoices[invoiceKey] = true;
+        settledInvoiceCount += 1;
         spentOnDayUqor[day] = uint96(treasuryDayAfter);
         totalSpentUqor += amountUqor;
 
-        emit VendorPaidWithApproval(vendorId, v.payee, amountUqor, memoHash, approvalNonce_, day);
+        emit VendorPaidWithApproval(vendorId, v.payee, amountUqor, invoiceKey, approvalNonce_, day);
 
         (bool ok,) = payable(v.payee).call{value: msg.value}("");
         if (!ok) revert TransferFailed(v.payee, msg.value);
@@ -307,12 +337,12 @@ contract QoreGuardTreasury {
     }
 
     /// @notice The exact message an owner signs to approve one over-cap payment.
-    function exceptionMessage(uint256 vendorId, uint256 amountUqor, bytes32 memoHash, uint256 approvalNonce_)
+    function exceptionMessage(uint256 vendorId, uint256 amountUqor, bytes32 invoiceKey, uint256 approvalNonce_)
         public
         view
         returns (bytes memory)
     {
-        return adminMessage(PAY_WITH_APPROVAL, keccak256(abi.encode(vendorId, amountUqor, memoHash)), approvalNonce_);
+        return adminMessage(PAY_WITH_APPROVAL, keccak256(abi.encode(vendorId, amountUqor, invoiceKey)), approvalNonce_);
     }
 
     // ------------------------------------------------------------------ //

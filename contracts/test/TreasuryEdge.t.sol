@@ -166,6 +166,33 @@ contract TreasuryEdgeTest is Test {
         treasury.pay{value: 0}(1, 0, bytes32(0));
     }
 
+    function testDuplicateCheckPrecedesTheVendorCap() public {
+        bytes32 invoice = keccak256("qg-inv:v1:1:INV-1001");
+        vm.prank(owner);
+        treasury.pay{value: 150_000 * WEI}(1, 150_000, invoice);
+        // Even an amount over the vendor cap reports the duplicate, not the cap:
+        // the invoice is settled and no lane may revisit it.
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(QoreGuardTreasury.InvoiceAlreadyPaid.selector, invoice));
+        treasury.pay{value: 250_000 * WEI}(1, 250_000, invoice);
+    }
+
+    function testDuplicateCheckPrecedesTheOwnerSignature() public {
+        bytes32 invoice = keccak256("qg-inv:v1:1:INV-1002");
+        uint256 amount = 500_000;
+        uint256 nonce = treasury.approvalNonce();
+        bytes memory message = treasury.exceptionMessage(1, amount, invoice, nonce);
+        vm.prank(owner);
+        treasury.payWithApproval{value: amount * WEI}(1, amount, invoice, nonce, ownerPk, _sign(message));
+
+        // A duplicate with a garbage signature is still refused as a duplicate:
+        // the record is consulted before the PQ gate.
+        uint256 next = treasury.approvalNonce();
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(QoreGuardTreasury.InvoiceAlreadyPaid.selector, invoice));
+        treasury.payWithApproval{value: amount * WEI}(1, amount, invoice, next, ownerPk, hex"01");
+    }
+
     function testPayRefusesWhenVendorTransferFails() public {
         RejectingPayee rejecting = new RejectingPayee();
         _addVendor(3, address(rejecting), "rejecting", 100_000, 100_000);

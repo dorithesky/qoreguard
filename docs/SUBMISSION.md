@@ -71,16 +71,31 @@ a replayed nonce is refused. fUSD: the agent pays a 500 fUSD invoice itself on
 the native lane under the same spending rule, which now lists the token denom,
 and the treasury obtained those tokens from a swap in pool 2.
 
-**Proof, not adjectives.** 51 Foundry tests, 13 invariants over an 8-action
-handler, 100% of lines, statements, branches and functions, and 19/19 mutants
+**Proof, not adjectives.** 58 Foundry tests, 15 invariants over a 9-action
+handler, 100% of lines, statements, branches and functions, and 22/22 mutants
 killed (`python scripts/mutate.py`); a QoreScan CBOM (CycloneDX 1.6) with DORA
 and NIS2 mappings in `docs/`; a daily GitHub Actions run that re-executes
 `forge test` and `python verify.py` on a machine we do not control, with no
 secret configured.
 
-**A judge can press it.** `web/lab.html` runs seven refusals in the browser as
+**One invoice, one payment.** The treasury contract records every invoice it
+settles (`paidInvoices`, keyed by `qg-inv:v1:<vendorId>:<invoiceId>`) and both
+lanes consult it before moving value: the agent's `pay` and the owner-approved
+`payWithApproval`. Two requests for the same invoice — from a retry, from a
+second agent, from a restarted app, or across the two lanes — produce one
+deposit and one `InvoiceAlreadyPaid` revert, checked before any cap or
+signature. The agent's journal skips a settled invoice on restart as well; the
+contract is what makes that a guarantee rather than a habit. `demo/guard.json`
+holds six attempts on two invoices and the vendor's balance, and `verify.py`
+reproduces the refusal with a live `eth_call`. Currency is part of the same
+contract with the reader: an invoice is read in its own denom, so a 500 fUSD
+invoice is 500 fUSD in the invoice list, the ledger and the receipt
+(`demo/receipts.json`) — never a QOR number nobody paid.
+
+**A judge can press it.** `web/lab.html` runs eight refusals in the browser as
 `eth_call`s — over-cap, unknown vendor, forged ML-DSA-87 signature, memo ≠ value,
-stale approval nonce, a non-owner sender, a one-byte signature — and verifies the
+stale approval nonce, a non-owner sender, a one-byte signature, an invoice that
+is already settled — and verifies the
 owner's recorded hybrid signature against the key the chain holds, refusing a
 changed byte. The page holds no key, so it can only ask. `web/qorex.html` detects
 QoreX with `@qorechain/qorex-types`, reads the account and its on-chain key
@@ -92,13 +107,14 @@ owner's ML-DSA-87 key registered with a proof of possession; a deployment EVM
 window of one transaction, then a target-scoped admin window; two vendors
 registered through PQ-signed calls the contract verified with `pqcVerify`; the
 agent linked with `send`+`evm`, 0.6 QOR/tx, 1.5 QOR/day and two allowed
-selectors; five QOR payments and one fUSD invoice settled; five policy refusals
-(two vendor-cap refusals, the chain's own per-call limit, a vendor daily-cap
-refusal, a tampered invoice stopped before the chain); one owner-approved
+selectors; seven QOR payments and two fUSD invoices settled; policy refusals
+that are mined transactions (two vendor-cap refusals, the chain's own per-call
+limit, a vendor daily-cap refusal, four `InvoiceAlreadyPaid` duplications, a
+tampered invoice stopped before the chain); one owner-approved
 exception that settled; a PQ-signed cap change; a revocation after which the
 chain answers `linked key is unbound or revoked`; and a Q-Day check where the
 owner's classical key submits a `setTreasuryCap` with a forged PQ signature —
-mined, reverted, policy unchanged. `python verify.py` re-checks 40 of these
+mined, reverted, policy unchanged. `python verify.py` re-checks 45 of these
 facts read-only with no keys, and `docs/JUDGES.md` is the five-minute tour.
 
 **Why this is AI-native.** The build itself used an AI workflow (documented in

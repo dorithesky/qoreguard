@@ -42,8 +42,8 @@ MUTANTS: list[tuple[str, str, str, str]] = [
     (
         "M03",
         "the treasury daily cap is not enforced on the agent lane",
-        "if (treasuryDayAfter > treasuryDailyCapUqor) revert TreasuryDayCapExceeded(treasuryDayAfter, treasuryDailyCapUqor);\n\n        spentOnDayUqor[_vendorDayKey(vendorId, day)]",
-        "if (false) revert TreasuryDayCapExceeded(treasuryDayAfter, treasuryDailyCapUqor);\n\n        spentOnDayUqor[_vendorDayKey(vendorId, day)]",
+        "if (treasuryDayAfter > treasuryDailyCapUqor) revert TreasuryDayCapExceeded(treasuryDayAfter, treasuryDailyCapUqor);\n\n        paidInvoices[invoiceKey] = true;",
+        "if (false) revert TreasuryDayCapExceeded(treasuryDayAfter, treasuryDailyCapUqor);\n\n        paidInvoices[invoiceKey] = true;",
     ),
     (
         "M04",
@@ -102,26 +102,26 @@ MUTANTS: list[tuple[str, str, str, str]] = [
     (
         "M13",
         "an inactive vendor can still be paid",
-        "if (!v.active) revert VendorInactive(vendorId);\n        if (amountUqor > v.perTxCapUqor)",
-        "if (amountUqor > v.perTxCapUqor)",
+        "if (!v.active) revert VendorInactive(vendorId);\n        if (paidInvoices[invoiceKey]) revert InvoiceAlreadyPaid(invoiceKey);\n        if (amountUqor > v.perTxCapUqor)",
+        "if (paidInvoices[invoiceKey]) revert InvoiceAlreadyPaid(invoiceKey);\n        if (amountUqor > v.perTxCapUqor)",
     ),
     (
         "M14",
         "an unregistered vendor id can be paid",
-        "if (v.payee == address(0)) revert UnknownVendor(vendorId);\n        if (!v.active) revert VendorInactive(vendorId);\n        if (amountUqor > v.perTxCapUqor)",
-        "if (!v.active) revert VendorInactive(vendorId);\n        if (amountUqor > v.perTxCapUqor)",
+        "if (v.payee == address(0)) revert UnknownVendor(vendorId);\n        if (!v.active) revert VendorInactive(vendorId);\n        if (paidInvoices[invoiceKey]) revert InvoiceAlreadyPaid(invoiceKey);\n        if (amountUqor > v.perTxCapUqor)",
+        "if (!v.active) revert VendorInactive(vendorId);\n        if (paidInvoices[invoiceKey]) revert InvoiceAlreadyPaid(invoiceKey);\n        if (amountUqor > v.perTxCapUqor)",
     ),
     (
         "M15",
         "a zero-amount payment is accepted",
-        "if (amountUqor == 0) revert ZeroAmount();\n        if (msg.value != amountUqor * WEI_PER_UQOR) revert ValueMismatch(msg.value, amountUqor * WEI_PER_UQOR);\n\n        Vendor storage v = _vendors[vendorId];\n        if (v.payee == address(0)) revert UnknownVendor(vendorId);\n        if (!v.active) revert VendorInactive(vendorId);\n        if (amountUqor > v.perTxCapUqor)",
-        "if (msg.value != amountUqor * WEI_PER_UQOR) revert ValueMismatch(msg.value, amountUqor * WEI_PER_UQOR);\n\n        Vendor storage v = _vendors[vendorId];\n        if (v.payee == address(0)) revert UnknownVendor(vendorId);\n        if (!v.active) revert VendorInactive(vendorId);\n        if (amountUqor > v.perTxCapUqor)",
+        "if (amountUqor == 0) revert ZeroAmount();\n        if (msg.value != amountUqor * WEI_PER_UQOR) revert ValueMismatch(msg.value, amountUqor * WEI_PER_UQOR);\n\n        Vendor storage v = _vendors[vendorId];\n        if (v.payee == address(0)) revert UnknownVendor(vendorId);\n        if (!v.active) revert VendorInactive(vendorId);\n        if (paidInvoices[invoiceKey]) revert InvoiceAlreadyPaid(invoiceKey);\n        if (amountUqor > v.perTxCapUqor)",
+        "if (msg.value != amountUqor * WEI_PER_UQOR) revert ValueMismatch(msg.value, amountUqor * WEI_PER_UQOR);\n\n        Vendor storage v = _vendors[vendorId];\n        if (v.payee == address(0)) revert UnknownVendor(vendorId);\n        if (!v.active) revert VendorInactive(vendorId);\n        if (paidInvoices[invoiceKey]) revert InvoiceAlreadyPaid(invoiceKey);\n        if (amountUqor > v.perTxCapUqor)",
     ),
     (
         "M16",
         "msg.value may differ from the amount the memo names",
-        "if (msg.value != amountUqor * WEI_PER_UQOR) revert ValueMismatch(msg.value, amountUqor * WEI_PER_UQOR);\n\n        Vendor storage v = _vendors[vendorId];\n        if (v.payee == address(0)) revert UnknownVendor(vendorId);\n        if (!v.active) revert VendorInactive(vendorId);\n        if (amountUqor > v.perTxCapUqor)",
-        "if (false) revert ValueMismatch(msg.value, amountUqor * WEI_PER_UQOR);\n\n        Vendor storage v = _vendors[vendorId];\n        if (v.payee == address(0)) revert UnknownVendor(vendorId);\n        if (!v.active) revert VendorInactive(vendorId);\n        if (amountUqor > v.perTxCapUqor)",
+        "if (msg.value != amountUqor * WEI_PER_UQOR) revert ValueMismatch(msg.value, amountUqor * WEI_PER_UQOR);\n\n        Vendor storage v = _vendors[vendorId];\n        if (v.payee == address(0)) revert UnknownVendor(vendorId);\n        if (!v.active) revert VendorInactive(vendorId);\n        if (paidInvoices[invoiceKey]) revert InvoiceAlreadyPaid(invoiceKey);\n        if (amountUqor > v.perTxCapUqor)",
+        "if (false) revert ValueMismatch(msg.value, amountUqor * WEI_PER_UQOR);\n\n        Vendor storage v = _vendors[vendorId];\n        if (v.payee == address(0)) revert UnknownVendor(vendorId);\n        if (!v.active) revert VendorInactive(vendorId);\n        if (paidInvoices[invoiceKey]) revert InvoiceAlreadyPaid(invoiceKey);\n        if (amountUqor > v.perTxCapUqor)",
     ),
     (
         "M17",
@@ -138,8 +138,26 @@ MUTANTS: list[tuple[str, str, str, str]] = [
     (
         "M19",
         "an over-cap payment needs no owner signature at all",
-        "        bytes32 payloadHash = keccak256(abi.encode(vendorId, amountUqor, memoHash));\n        _requireOwnerSignature(PAY_WITH_APPROVAL, payloadHash, approvalNonce_, pqcPubkey, pqcSignature);",
-        "        bytes32 payloadHash = keccak256(abi.encode(vendorId, amountUqor, memoHash));\n        payloadHash;",
+        "        bytes32 payloadHash = keccak256(abi.encode(vendorId, amountUqor, invoiceKey));\n        _requireOwnerSignature(PAY_WITH_APPROVAL, payloadHash, approvalNonce_, pqcPubkey, pqcSignature);",
+        "        bytes32 payloadHash = keccak256(abi.encode(vendorId, amountUqor, invoiceKey));\n        payloadHash;",
+    ),
+    (
+        "M20",
+        "the agent lane pays an invoice that is already settled",
+        "if (paidInvoices[invoiceKey]) revert InvoiceAlreadyPaid(invoiceKey);\n        if (amountUqor > v.perTxCapUqor)",
+        "if (false) revert InvoiceAlreadyPaid(invoiceKey);\n        if (amountUqor > v.perTxCapUqor)",
+    ),
+    (
+        "M21",
+        "the approval lane pays an invoice that is already settled",
+        "if (paidInvoices[invoiceKey]) revert InvoiceAlreadyPaid(invoiceKey);\n\n        bytes32 payloadHash = keccak256(abi.encode(vendorId, amountUqor, invoiceKey));",
+        "if (false) revert InvoiceAlreadyPaid(invoiceKey);\n\n        bytes32 payloadHash = keccak256(abi.encode(vendorId, amountUqor, invoiceKey));",
+    ),
+    (
+        "M22",
+        "a settled invoice is recorded under another key, so it can be paid again",
+        "paidInvoices[invoiceKey] = true;\n        settledInvoiceCount += 1;\n        spentOnDayUqor[_vendorDayKey(vendorId, day)]",
+        "paidInvoices[keccak256(abi.encode(invoiceKey))] = true;\n        settledInvoiceCount += 1;\n        spentOnDayUqor[_vendorDayKey(vendorId, day)]",
     ),
 ]
 

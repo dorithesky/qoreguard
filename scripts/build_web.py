@@ -55,6 +55,8 @@ FUNCTIONS = {
     "totalSpentUqor": ("totalSpentUqor()", [], ["uint256"]),
     "spentToday": ("spentToday(uint256)", ["uint256"], ["uint256"]),
     "treasurySpentToday": ("treasurySpentToday()", [], ["uint256"]),
+    "paidInvoices": ("paidInvoices(bytes32)", ["bytes32"], ["bool"]),
+    "settledInvoiceCount": ("settledInvoiceCount()", [], ["uint256"]),
     "pqcKeyStatus": (
         "pqcKeyStatus(address)",
         ["address"],
@@ -96,6 +98,23 @@ def build_data() -> dict:
     addrs = json.loads((ROOT / "demo" / "addresses.json").read_text())
     mandate = json.loads((ROOT / "demo" / "mandate.json").read_text())
     console = json.loads((ROOT / "demo" / "qorex-console.json").read_text())
+    guard_path = ROOT / "demo" / "guard.json"
+    guard = json.loads(guard_path.read_text()) if guard_path.exists() else {}
+
+    #: One invoice the deployed contract has already settled. The lab's eighth
+    #: experiment asks it to pay that invoice again: the chain must say no.
+    settled = {}
+    for p in (guard.get("pay", {}).get("payments") or []):
+        if p.get("paid"):
+            settled = {
+                "invoice": p["invoice"],
+                "vendor_id": 1,
+                "amount_uqor": p["amount_uqor"],
+                "key": p["invoice_key"],
+                "key_hash": "0x" + keccak(text=p["invoice_key"]).hex(),
+                "tx": p["tx"],
+            }
+            break
 
     data = {
         "chain": {
@@ -124,6 +143,7 @@ def build_data() -> dict:
         },
         "actions": {name: selector(f"{name}()") for name in ACTIONS},
         "errors": error_table(),
+        "settled_invoice": settled,
         "console": console,
         "approval": json.loads((ROOT / "demo" / "p1.json").read_text())["approval"],
         "pq_signature_len": 4627,

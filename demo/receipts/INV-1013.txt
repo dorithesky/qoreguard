@@ -1,0 +1,7 @@
+QoreGuard receipt INV-1013
+vendor       cloud-hosting
+invoice      500 fUSD (500 erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA)
+paid         500 fUSD (500 erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA)
+lane         native token
+tx           3DAD3DF948B61ED87642BC476C6F79DD66A0E1F182405510EF9D1696FC028D08
+agrees       True

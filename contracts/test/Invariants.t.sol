@@ -35,6 +35,21 @@ contract TreasuryHandler is Test {
     /// treasury day cap but not against any vendor's day counter.
     mapping(uint256 => uint256) public ghostApprovedByDay;
 
+    /// An invoice identifier is paid at most once, across both lanes. The
+    /// ghost records every key it saw settle and refuses to let a repeat pass.
+    mapping(bytes32 => uint256) public ghostTimesPaid;
+    bytes32[] public ghostPaidKeys;
+    uint256 public ghostDuplicateAccepted;
+    uint256 public ghostDuplicateAttempts;
+
+    struct PaidInvoice {
+        uint256 vendorId;
+        uint96 amount;
+        bytes32 invoiceKey;
+    }
+
+    PaidInvoice[] public paidInvoices;
+
     mapping(uint256 => bool) public expectActive;
 
     constructor(QoreGuardTreasury treasury_, MockPQCKeys keys_, address owner_, bytes memory pk_) {
@@ -53,6 +68,10 @@ contract TreasuryHandler is Test {
 
     function vendorCount() external view returns (uint256) {
         return SEED_VENDORS + ghostVendorsAdded;
+    }
+
+    function ghostPaidKeysLength() external view returns (uint256) {
+        return ghostPaidKeys.length;
     }
 
     function _sign(bytes memory message) internal pure returns (bytes memory) {
@@ -87,13 +106,17 @@ contract TreasuryHandler is Test {
         bool allowed = active && amount > 0 && amount <= perTx && daySpent + amount <= daily
             && treasurySpent + amount <= treasuryCap;
 
+        bytes32 invoiceKey = keccak256(abi.encode("pay", vid, amount));
+        allowed = allowed && ghostTimesPaid[invoiceKey] == 0;
+
         ghostPaidCalls++;
         vm.prank(owner);
-        try treasury.pay{value: uint256(amount) * WEI}(vid, amount, keccak256(abi.encode("pay", vid, amount))) {
+        try treasury.pay{value: uint256(amount) * WEI}(vid, amount, invoiceKey) {
             if (!allowed) ghostMismatches++;
             if (!active) ghostPaidAfterDeactivation = true;
             ghostTotalPaid += amount;
             ghostVendorPaid[vid] += amount;
+            _recordInvoice(vid, amount, invoiceKey);
         } catch {
             if (allowed) ghostMismatches++;
         }
@@ -118,7 +141,8 @@ contract TreasuryHandler is Test {
 
         uint256 treasurySpent = treasury.treasurySpentToday();
         uint96 treasuryCap = treasury.treasuryDailyCapUqor();
-        bool allowed = active && !tampered && amount > 0 && treasurySpent + amount <= treasuryCap;
+        bool allowed = active && !tampered && amount > 0 && treasurySpent + amount <= treasuryCap
+            && ghostTimesPaid[memo] == 0;
 
         ghostPaidCalls++;
         vm.prank(owner);
@@ -129,9 +153,44 @@ contract TreasuryHandler is Test {
             ghostVendorPaid[vid] += amount;
             ghostApprovedByDay[block.timestamp / 1 days] += amount;
             ghostSignedActions++;
+            _recordInvoice(vid, amount, memo);
         } catch {
             if (allowed) ghostMismatches++;
         }
+    }
+
+    function _recordInvoice(uint256 vid, uint96 amount, bytes32 invoiceKey) internal {
+        if (ghostTimesPaid[invoiceKey] == 0) {
+            ghostPaidKeys.push(invoiceKey);
+            paidInvoices.push(PaidInvoice(vid, amount, invoiceKey));
+        }
+        ghostTimesPaid[invoiceKey] += 1;
+    }
+
+    /// Someone asks the contract to pay an invoice it has already settled — on
+    /// the same lane or the other one, with a valid owner approval where the
+    /// lane needs one. Every such attempt must revert, and no value may move.
+    function duplicate(uint256 pick, bool withApproval) external {
+        if (paidInvoices.length == 0) return;
+        PaidInvoice memory p = paidInvoices[pick % paidInvoices.length];
+        ghostDuplicateAttempts++;
+
+        if (!withApproval) {
+            vm.prank(owner);
+            try treasury.pay{value: uint256(p.amount) * WEI}(p.vendorId, p.amount, p.invoiceKey) {
+                ghostDuplicateAccepted++;
+            } catch {}
+            return;
+        }
+
+        uint256 nonce = treasury.approvalNonce();
+        bytes memory sig = _sign(treasury.exceptionMessage(p.vendorId, p.amount, p.invoiceKey, nonce));
+        vm.prank(owner);
+        try treasury.payWithApproval{value: uint256(p.amount) * WEI}(
+            p.vendorId, p.amount, p.invoiceKey, nonce, ownerPk, sig
+        ) {
+            ghostDuplicateAccepted++;
+        } catch {}
     }
 
     function setVendorActive(uint256 vendorSeed, bool active) external {
@@ -400,5 +459,27 @@ contract QoreGuardInvariantsTest is Test {
     /// @notice The immutable owner never changes.
     function invariant_ownerIsImmutable() public view {
         assertEq(treasury.ownerAccount(), owner);
+    }
+
+    /// @notice No invoice identifier ever settles twice, on either lane, even
+    ///         when the handler replays one on purpose.
+    function invariant_invoiceIsSettledAtMostOnce() public view {
+        assertEq(handler.ghostDuplicateAccepted(), 0, "a duplicate invoice payment was accepted");
+        assertEq(treasury.settledInvoiceCount(), handler.ghostPaidKeysLength(), "settled count != distinct keys");
+        for (uint256 i = 0; i < handler.ghostPaidKeysLength(); i++) {
+            assertEq(handler.ghostTimesPaid(handler.ghostPaidKeys(i)), 1, "an invoice key settled twice");
+        }
+    }
+
+    /// @notice The settlement record and the money agree: every key the
+    ///         contract calls paid corresponds to value that really left, and
+    ///         the count never runs ahead of the ledger.
+    function invariant_settlementRecordMatchesTheLedger() public view {
+        assertLe(treasury.settledInvoiceCount(), treasury.totalSpentUqor(), "more invoices than value");
+        uint256 sum;
+        for (uint256 i = 0; i < handler.ghostPaidKeysLength(); i++) {
+            sum += handler.ghostTimesPaid(handler.ghostPaidKeys(i));
+        }
+        assertEq(sum, handler.ghostPaidKeysLength(), "a key was recorded without a payment");
     }
 }

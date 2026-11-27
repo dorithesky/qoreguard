@@ -65,6 +65,11 @@ const cases = [
   ["one-byte signature", () => ({
     data: qg.encodeCall("setVendorActive", [1n, false, nonce[0], key.pubkey, "0x01"]), value: 0n,
   }), "BadPqcSignature"],
+  ["already-settled invoice", () => ({
+    data: qg.encodeCall("pay", [BigInt(DATA.settled_invoice.vendor_id),
+      BigInt(DATA.settled_invoice.amount_uqor), DATA.settled_invoice.key_hash]),
+    value: BigInt(DATA.settled_invoice.amount_uqor) * 10n ** 12n,
+  }), "InvoiceAlreadyPaid"],
 ];
 
 for (const [label, build, expected] of cases) {
@@ -97,7 +102,10 @@ try {
   ok(true, "tampered copy refused", err.code || err.name);
 }
 
-ok(DATA.contract.toLowerCase() === "0xa437ca5360214d4225ab3323da8f72db99250d92", "lab embeds the deployed contract");
+const addrs = JSON.parse(fs.readFileSync(path.join(ROOT, "demo/addresses.json"), "utf8"));
+ok(DATA.contract.toLowerCase() === addrs.contract.toLowerCase(), "lab embeds the deployed contract", DATA.contract);
+const settledOnChain = await qg.view("paidInvoices", [DATA.settled_invoice.key_hash]);
+ok(settledOnChain[0] === true, "paidInvoices() says the lab's invoice is settled", DATA.settled_invoice.invoice);
 
 console.log(`\n${failures === 0 ? "all checks passed" : failures + " failed"}`);
 process.exit(failures === 0 ? 0 : 1);

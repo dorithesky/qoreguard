@@ -74,6 +74,7 @@ class Decision:
     memo: str
     action: str  # "pay" | "pay_with_approval" | "skip"
     reason: str
+    invoice_key: str = ""
     intent: Intent | None = None
     intent_signature: str | None = None
     tx_hash: str | None = None
@@ -163,7 +164,16 @@ class Agent:
         *,
         approval: T.OwnerSignature | None = None,
         intent: Intent | None = None,
+        invoice_key: str | None = None,
     ) -> Decision:
+        """Pay one invoice through the treasury contract.
+
+        `memo` is the human-readable line recorded in the signed intent;
+        `invoice_key` is the stable identifier the contract records as settled
+        (`qg-inv:v1:<vendorId>:<invoiceId>`). Without one, the memo doubles as
+        the key, which is what the first run of the demo did.
+        """
+        key = invoice_key or memo
         nonce = self.chain.auth_nonce(self.owner.cosmos, self.pubkey).nonce
         if intent is None:
             intent = self.build_intent(vendor_id, vendor_label, amount_uqor, memo)
@@ -174,13 +184,13 @@ class Agent:
         intent_sig = self._sign_intent(intent)
 
         if approval is None:
-            data = T.calldata_pay(vendor_id, amount_uqor, intent.onchain_memo)
+            data = T.calldata_pay(vendor_id, amount_uqor, key)
             action = "pay"
         else:
             data = T.calldata_pay_with_approval(
                 vendor_id,
                 amount_uqor,
-                intent.onchain_memo,
+                key,
                 approval.nonce,
                 approval.pubkey,
                 approval.signature,
@@ -221,6 +231,7 @@ class Agent:
             memo=memo,
             action=action,
             reason="within mandate",
+            invoice_key=key,
             intent=intent,
             intent_signature=intent_sig.hex(),
             tx_hash=outcome.tx_hash,
@@ -244,6 +255,8 @@ class Agent:
                 "kind": "payment",
                 "action": action,
                 "invoice": decision.invoice_id,
+                "invoice_key": key,
+                "contract": self.contract,
                 "vendor_id": vendor_id,
                 "vendor_label": vendor_label,
                 "amount_uqor": amount_uqor,
@@ -314,6 +327,7 @@ class Agent:
             memo=memo,
             action="pay_token",
             reason="within mandate",
+            invoice_key=T.invoice_key(memo.split(" ")[0], vendor_id) if memo else "",
             intent=intent,
             intent_signature=intent_sig.hex(),
             tx_hash=outcome.tx_hash,
@@ -330,6 +344,8 @@ class Agent:
                 "kind": "token_payment",
                 "action": "pay_token",
                 "invoice": decision.invoice_id,
+                "invoice_key": decision.invoice_key,
+                "contract": None,
                 "vendor_id": vendor_id,
                 "vendor_label": vendor_label,
                 "amount": amount,

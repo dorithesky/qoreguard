@@ -91,6 +91,34 @@
       "denom": "erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA",
       "signer_pubkey": "d25a14eb5aa5c6d97cafeb8b53fe0b3ddf753eb887770158263d8661531fcae2",
       "signature": "a9fe6ad388ce14e89f024ae42daf987a62e8b694b52b35c1d07ce56555e1aed4a858107b6d9c0f3930bc44b9b7ed1fd40b587011d3b6ad8011ce848a53a9c901"
+    },
+    {
+      "id": "INV-1014",
+      "vendor": "cloud-hosting",
+      "amount_uqor": 150000,
+      "memo": "Edge cache, one month, settled once",
+      "due": "2026-12-03",
+      "signature": "aa9fd206a2c5908dd5ae3414de91df89f2885277bc3742d53bdfc424b04f2d9ff019adbd2a909fbcc6ca2d6db3916160f0f46eb6197e99ead2cb90360265a807",
+      "signer_pubkey": "d25a14eb5aa5c6d97cafeb8b53fe0b3ddf753eb887770158263d8661531fcae2"
+    },
+    {
+      "id": "INV-1015",
+      "vendor": "cloud-hosting",
+      "amount_uqor": 500000,
+      "memo": "Incident replay capacity, above the automatic cap",
+      "due": "2026-12-03",
+      "signature": "99301d1eef6008d578e3cdcf7aa215988a79f0aff59dbb5689e884ecb036ccd4ec64feca9aad5405c3a1a5a7140c7f0f683824f6f3b842bbaf64bfc5814a6c03",
+      "signer_pubkey": "d25a14eb5aa5c6d97cafeb8b53fe0b3ddf753eb887770158263d8661531fcae2"
+    },
+    {
+      "id": "INV-1016",
+      "vendor": "cloud-hosting",
+      "amount_uqor": 5,
+      "memo": "Inference credits, five fUSD, paid by the general run",
+      "due": "2026-12-03",
+      "denom": "erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA",
+      "signature": "41f8e491b4df2f14d1fa9bbd9394c395f67d215065b41fa33e9a54adb1cac8ca58474bb6c18a936e1c5161e644ff0f4464f7d33537c31ef2de3f6b3e34c40f07",
+      "signer_pubkey": "d25a14eb5aa5c6d97cafeb8b53fe0b3ddf753eb887770158263d8661531fcae2"
     }
   ]
 }

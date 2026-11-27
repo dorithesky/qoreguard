@@ -1,0 +1,7 @@
+QoreGuard receipt INV-1001
+vendor       cloud-hosting
+invoice      0.150 QOR (150000 uqor)
+paid         0.150 QOR (150000 uqor)
+lane         treasury contract
+tx           B662008D78AC5001DE9B486A878155C00D9D36B9AA974BEF7C88407BAAD93F68
+agrees       True

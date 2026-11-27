@@ -89,6 +89,88 @@ contract QoreGuardTreasuryTest is Test {
         assertEq(treasury.totalSpentUqor(), 150_000);
         assertEq(treasury.treasurySpentToday(), 150_000);
         assertEq(treasury.spentToday(1), 150_000);
+        assertTrue(treasury.paidInvoices(keccak256("INV-1001")));
+        assertEq(treasury.settledInvoiceCount(), 1);
+    }
+
+    // ------------------------------------------------------------------ //
+    // one invoice, one payment — whichever lane, however many attempts
+    // ------------------------------------------------------------------ //
+
+    function testSameInvoiceCannotBePaidTwiceOnTheAgentLane() public {
+        bytes32 invoice = keccak256("qg-inv:v1:1:INV-1001");
+        _pay(1, 150_000, invoice);
+        uint256 paid = hosting.balance;
+
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(QoreGuardTreasury.InvoiceAlreadyPaid.selector, invoice));
+        treasury.pay{value: 150_000 * WEI}(1, 150_000, invoice);
+
+        assertEq(hosting.balance, paid, "the vendor was paid twice");
+        assertEq(treasury.totalSpentUqor(), 150_000);
+        assertEq(treasury.settledInvoiceCount(), 1);
+    }
+
+    function testSameInvoiceCannotBePaidTwiceWithApproval() public {
+        bytes32 invoice = keccak256("qg-inv:v1:1:INV-1002");
+        uint256 amount = 500_000;
+        uint256 nonce = treasury.approvalNonce();
+        bytes memory message = treasury.exceptionMessage(1, amount, invoice, nonce);
+        vm.prank(owner);
+        treasury.payWithApproval{value: amount * WEI}(1, amount, invoice, nonce, ownerPk, _sign(message));
+        uint256 paid = hosting.balance;
+
+        uint256 second = treasury.approvalNonce();
+        bytes memory secondMessage = treasury.exceptionMessage(1, amount, invoice, second);
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(QoreGuardTreasury.InvoiceAlreadyPaid.selector, invoice));
+        treasury.payWithApproval{value: amount * WEI}(1, amount, invoice, second, ownerPk, _sign(secondMessage));
+
+        assertEq(hosting.balance, paid, "the vendor was paid twice");
+        assertEq(treasury.totalSpentUqor(), amount);
+        assertEq(treasury.approvalNonce(), second, "a refused duplicate consumed an approval nonce");
+        assertEq(treasury.settledInvoiceCount(), 1);
+    }
+
+    function testInvoicePaidOnTheAgentLaneCannotBePaidWithApproval() public {
+        bytes32 invoice = keccak256("qg-inv:v1:1:INV-1001");
+        _pay(1, 150_000, invoice);
+        uint256 paid = hosting.balance;
+
+        uint256 nonce = treasury.approvalNonce();
+        bytes memory message = treasury.exceptionMessage(1, 150_000, invoice, nonce);
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(QoreGuardTreasury.InvoiceAlreadyPaid.selector, invoice));
+        treasury.payWithApproval{value: 150_000 * WEI}(1, 150_000, invoice, nonce, ownerPk, _sign(message));
+
+        assertEq(hosting.balance, paid);
+        assertEq(treasury.totalSpentUqor(), 150_000);
+    }
+
+    function testInvoicePaidWithApprovalCannotBePaidOnTheAgentLane() public {
+        bytes32 invoice = keccak256("qg-inv:v1:1:INV-1002");
+        uint256 amount = 500_000;
+        uint256 nonce = treasury.approvalNonce();
+        bytes memory message = treasury.exceptionMessage(1, amount, invoice, nonce);
+        vm.prank(owner);
+        treasury.payWithApproval{value: amount * WEI}(1, amount, invoice, nonce, ownerPk, _sign(message));
+        uint256 paid = hosting.balance;
+
+        // The second attempt is small enough for every cap: only the invoice record can stop it.
+        vm.prank(owner);
+        vm.expectRevert(abi.encodeWithSelector(QoreGuardTreasury.InvoiceAlreadyPaid.selector, invoice));
+        treasury.pay{value: 1_000 * WEI}(1, 1_000, invoice);
+
+        assertEq(hosting.balance, paid, "the vendor was paid twice");
+        assertEq(treasury.totalSpentUqor(), amount);
+        assertEq(treasury.settledInvoiceCount(), 1);
+    }
+
+    function testDistinctInvoicesStillPay() public {
+        _pay(1, 100_000, keccak256("qg-inv:v1:1:INV-1001"));
+        _pay(1, 100_000, keccak256("qg-inv:v1:1:INV-1006"));
+        assertEq(treasury.totalSpentUqor(), 200_000);
+        assertEq(treasury.settledInvoiceCount(), 2);
     }
 
     // ------------------------------------------------------------------ //

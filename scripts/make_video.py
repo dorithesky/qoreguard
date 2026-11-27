@@ -118,6 +118,16 @@ def build_slides() -> list[Slide]:
         if e.get("chain_success") is False and "gas" not in (e.get("chain_reason") or "").lower()
     ]
     contract = dep.get("contract") or addrs.get("contract", "0x…")
+    guard = load_json(ROOT / "demo" / "guard.json", {})
+    receipts = load_json(ROOT / "demo" / "receipts.json", {}).get("receipts", [])
+
+    def amount_label(entry: dict) -> str:
+        """The amount in the currency the payment is written in — 500 fUSD is
+        never formatted as 0.00 QOR."""
+        if entry.get("kind") == "token_payment" or entry.get("denom"):
+            amount = entry.get("amount", entry.get("amount_uqor", 0))
+            return f"{amount} fUSD"
+        return f"{entry.get('amount_uqor', 0) / 1_000_000:,.3f} QOR"
 
     tests = verification.get("tests", {})
     coverage = verification.get("coverage", {})
@@ -167,7 +177,7 @@ def build_slides() -> list[Slide]:
     s.say(f"deploy tx {dep.get('tx', '—')}", TEXT, "mono")
     s.say(f"block     {dep.get('block', '—')}", TEXT, "mono")
     s.say("", style="gap")
-    s.say("MsgOpenEVMWindow: 1 transaction, 1.5 QOR of value+fees, 400 blocks.", TEXT, "small")
+    s.say("MsgOpenEVMWindow: a fixed tx count and a uqor budget covering value + fees.", TEXT, "small")
     s.say("The classical owner key alone can never open that window.", MUTED, "small")
     s.say("", style="gap")
     s.say("explore.qore.network (switch to Testnet) shows every hash in this video.", ACCENT, "small")
@@ -180,16 +190,29 @@ def build_slides() -> list[Slide]:
         mark = "PAID   " if ok else "REFUSED"
         color = OK if ok else BAD
         inv = (e.get("invoice") or "").ljust(9)
-        unit = "fUSD" if e.get("kind") == "token_payment" else "QOR"
-        amt = f"{e.get('amount_uqor', 0) / 1_000_000:,.2f} {unit}"
+        amt = amount_label(e)
         s.say(f"{mark} {inv} {amt:>13}  {e.get('vendor_label','')}", color, "mono")
     s.say("", style="gap")
     s.say("The refusals are the product: they come from the chain and the contract.", MUTED, "small")
     slides.append(s)
 
+    s = Slide("Idempotency", "One invoice, one payment — on chain", 12)
+    s.say("The contract records every invoice it settles: paidInvoices[invoiceKey].", TEXT, "small")
+    s.say("pay() and payWithApproval() both check it before any cap or signature.", TEXT, "small")
+    s.say("", style="gap")
+    for p in (guard.get("pay", {}) or {}).get("payments", [])[:6]:
+        ok = p.get("paid")
+        mark = "PAID   " if ok else "REFUSED"
+        color = OK if ok else BAD
+        s.say(f"{mark} {p.get('invoice','')} {p.get('action',''):<19} {str(p.get('tx'))[:16]}…", color, "mono")
+    s.say("", style="gap")
+    s.say("Two invoices, six attempts, two deposits: the vendor's balance moved once each.", OK, "small")
+    s.say("A restart skips the invoice from the journal; the contract makes it a guarantee.", MUTED, "small")
+    slides.append(s)
+
     s = Slide("Refusals", "What the chain said no to, in its own words", 11)
     for e in refused[:3]:
-        s.say(f"{e.get('invoice')}  {e.get('amount_uqor',0)/1_000_000:.2f} QOR", BAD, "h2")
+        s.say(f"{e.get('invoice')}  {amount_label(e)}", BAD, "h2")
         reason = (e.get("chain_reason") or "").replace("\\n", " ")[:130]
         s.say(reason or "(no reason returned)", TEXT, "mono")
         s.say("", style="gap")
@@ -231,6 +254,7 @@ def build_slides() -> list[Slide]:
 
     s = Slide("Rail 4 — fUSD", "A stablecoin invoice under the same rule", 8)
     s.say(f"{token.get('amount','—')} fUSD to the vendor's account.", TEXT)
+    s.say(f"INV-1013: 500 fUSD in the invoice, the payment and the receipt ({len(receipts)} receipts agree).", OK, "small")
     s.say("Sent on the native lane by the agent itself: MsgExecuteCosmos.", TEXT, "small")
     s.say(f"tx {token.get('tx','—')[:24]}…", TEXT, "mono")
     s.say("", style="gap")
@@ -270,7 +294,7 @@ def build_slides() -> list[Slide]:
         f"{k} {v[0]}/{v[1]}" for k, v in coverage.items()
     ), OK, "mono")
     s.say(f"scripts/mutate.py {mutation.get('killed','—')}/{mutation.get('total','—')} mutants killed", OK, "mono")
-    s.say("python verify.py  40 checks, read-only, no keys", OK, "mono")
+    s.say("python verify.py  45 checks, read-only, no keys", OK, "mono")
     s.say("", style="gap")
     s.say(f"QoreScan CBOM     {algorithms} algorithms, CycloneDX 1.6 + DORA/NIS2", TEXT, "mono")
     s.say("", style="gap")

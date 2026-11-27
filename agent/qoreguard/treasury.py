@@ -44,6 +44,22 @@ SEL_TREASURY_DAILY_CAP = keccak(text="treasuryDailyCapUqor()")[:4]
 SEL_TOTAL_SPENT = keccak(text="totalSpentUqor()")[:4]
 SEL_OWNER_ACCOUNT = keccak(text="ownerAccount()")[:4]
 SEL_ADMIN_MESSAGE = keccak(text="adminMessage(bytes32,bytes32,uint256)")[:4]
+SEL_PAID_INVOICES = keccak(text="paidInvoices(bytes32)")[:4]
+SEL_SETTLED_INVOICE_COUNT = keccak(text="settledInvoiceCount()")[:4]
+
+#: The invoice identifier both payment lanes key their settlement record on.
+#: It is stable for the life of the invoice: the same invoice produces the same
+#: bytes on every attempt, in every process, on either lane. The vendor id is
+#: part of it so two vendors cannot share an id by accident.
+INVOICE_KEY_PREFIX = "qg-inv:v1"
+
+
+def invoice_key(invoice_id: str, vendor_id: int) -> str:
+    return f"{INVOICE_KEY_PREFIX}:{vendor_id}:{invoice_id}"
+
+
+def invoice_key_hash(invoice_id: str, vendor_id: int) -> bytes:
+    return keccak(text=invoice_key(invoice_id, vendor_id))
 
 
 def memo_hash(memo: str) -> bytes:
@@ -206,6 +222,7 @@ ERRORS: dict[bytes, tuple[str, list[str]]] = {
         "TransferFailed(address,uint256)",
         "ZeroAmount()",
         "ZeroPayee()",
+        "InvoiceAlreadyPaid(bytes32)",
     )
 }
 
@@ -228,7 +245,15 @@ def decode_revert(ret: bytes) -> str | None:
         values = abi_decode(types, ret[4:])
     except Exception:
         return f"{name}(…)"
-    return f"{name}(" + ", ".join(str(v) for v in values) + ")"
+
+    def render(value: Any) -> str:
+        # A bytes32 invoice key is an identifier, so print it as hex, not as a
+        # Python bytes literal.
+        if isinstance(value, (bytes, bytearray)):
+            return "0x" + bytes(value).hex()
+        return str(value)
+
+    return f"{name}(" + ", ".join(render(v) for v in values) + ")"
 
 
 def decode_uint(raw_hex: str) -> int:

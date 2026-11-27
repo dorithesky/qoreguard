@@ -73,7 +73,7 @@
 
   <h2>Refusal experiments</h2>
   <div class="row" style="margin-bottom:14px">
-    <button id="run-all">Run all seven</button>
+    <button id="run-all">Run all eight</button>
     <span class="muted" style="font-size:13px">or press one at a time — each shows the calldata it sent.</span>
   </div>
   <div id="experiments"></div>
@@ -113,7 +113,7 @@
       <a href="./qorex.html">QoreX console</a> — sign with your own wallet and verify ·
       <a href="../docs/DORA-REPORT.md">DORA report</a> ·
       <a href="../docs/cbom.json">CBOM</a> ·
-      <span class="mono">python verify.py</span> — 40 read-only checks from a clean machine
+      <span class="mono">python verify.py</span> — 45 read-only checks from a clean machine
     </p>
   </div>
 </main>
@@ -252,6 +252,15 @@ const experiments = [
       return { data: encodeCall("setVendorActive", [1n, false, state.nonce, key.pubkey, "0x01"]), value: 0n,
                expect: "BadPqcSignature" };
     },
+  },
+  {
+    title: "8 · Pay an invoice the contract has already settled",
+    body: "An invoice the contract paid once stays paid. This call names the settled invoice exactly — same vendor, same amount, same key — and offers the value again. The contract refuses before any cap or signature is even considered, so a retry, a second agent or a restarted app cannot pay the vendor twice.",
+    build: () => ({
+      data: encodeCall("pay", [BigInt(DATA.settled_invoice.vendor_id), BigInt(DATA.settled_invoice.amount_uqor), DATA.settled_invoice.key_hash]),
+      value: BigInt(DATA.settled_invoice.amount_uqor) * 10n ** 12n,
+      expect: "InvoiceAlreadyPaid",
+    }),
   },
 ];
 

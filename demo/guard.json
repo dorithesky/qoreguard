@@ -1,0 +1,217 @@
+{
+  "caps": {
+    "checked_at": "2026-11-27T23:23:45Z",
+    "daily": 400000,
+    "per_tx": 300000,
+    "tx": "0xd507ce1eda191de3d4f080a718a7ea0519e1951897ab87c071f099ea7fbf1abf",
+    "window": {
+      "blocks": 400,
+      "expiry_height": 10876990,
+      "max_txs": 1,
+      "max_value_uqor": 100000,
+      "targets": [
+        "0x3e9f072ffb0dc2cc07e4d5829a9f152556020a4a"
+      ],
+      "tx": "F281A05701A1EA6AED0C2048C727445C193CD0E0468BCF0BCACB83D6E67F5930"
+    }
+  },
+  "deploy": {
+    "block": 10876112,
+    "checked_at": "2026-11-27T23:12:21Z",
+    "contract": "0x3e9f072ffb0dc2cc07e4d5829a9f152556020a4a",
+    "gas_used": 3000000,
+    "previous_contract": "0xa437ca5360214d4225ab3323da8f72db99250d92",
+    "tx": "0x0f9bdd45c235773f929d088c5fa12b690870258967a70cc0901dab571af8d65c",
+    "window": {
+      "blocks": 400,
+      "expiry_height": 10876510,
+      "max_txs": 1,
+      "max_value_uqor": 2000000,
+      "targets": [],
+      "tx": "29A491C5CD08B36C39FCAF9F66135346098B29F872C469CE0AC90C431B11A59C"
+    }
+  },
+  "link": {
+    "auth_nonce": 11,
+    "checked_at": "2026-11-27T23:13:55Z",
+    "expiry": "2026-11-28T23:13:49Z",
+    "linked": true,
+    "rule": {
+      "allowed_denoms": [
+        "uqor",
+        "erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA"
+      ],
+      "allowed_evm_calls": [
+        "0x3e9f072ffb0dc2cc07e4d5829a9f152556020a4a/0x62bc84af",
+        "0x3e9f072ffb0dc2cc07e4d5829a9f152556020a4a/0xd98d5dc8"
+      ],
+      "daily_limit": 1500000,
+      "enabled": true,
+      "id": "qoreguard-agent-v3",
+      "per_tx_limit": 600000
+    },
+    "tx": "394B27C17B624DE3F9318C763A25446B02AB5C92F6F964C597E91937E0052488"
+  },
+  "pay": {
+    "checked_at": "2026-11-27T23:24:44Z",
+    "contract_total_spent_uqor": 650000,
+    "general_run_output": "(already settled: 6CC8C34E652BE8ED1331E929B9C81FCC8D2D44950EDC0DF568C893080B8F3234)",
+    "moved_to_payee_uqor": {
+      "INV-1014": 150000,
+      "INV-1015": 500000
+    },
+    "one_deposit_each": true,
+    "payee": "0x305e5935929844bECA43aB6376226a7916A2d129",
+    "payments": [
+      {
+        "action": "pay",
+        "amount_uqor": 150000,
+        "chain_reason": null,
+        "checked_at": "2026-11-27T23:24:34Z",
+        "expected": "PAID",
+        "invoice": "INV-1014",
+        "invoice_key": "qg-inv:v1:1:INV-1014",
+        "label": "agent lane, first attempt",
+        "paid": true,
+        "tx": "6CC8C34E652BE8ED1331E929B9C81FCC8D2D44950EDC0DF568C893080B8F3234"
+      },
+      {
+        "action": "pay",
+        "amount_uqor": 150000,
+        "chain_reason": "InvoiceAlreadyPaid(0xd87b33ed7d0e3db5607793b975b4bd2f8e130e2cd460c7be069d3e5c97c91eb2)",
+        "checked_at": "2026-11-27T23:24:41Z",
+        "expected": "REFUSED \u2014 InvoiceAlreadyPaid",
+        "invoice": "INV-1014",
+        "invoice_key": "qg-inv:v1:1:INV-1014",
+        "label": "agent lane, second attempt",
+        "paid": false,
+        "tx": "874E13F40A0534E60D6D824B46E5B211813D83AB0CB9BD2F132C9D8D7F8F62FD"
+      },
+      {
+        "action": "pay_with_approval",
+        "amount_uqor": 500000,
+        "chain_reason": null,
+        "checked_at": "2026-11-27T23:24:41Z",
+        "expected": "PAID",
+        "invoice": "INV-1015",
+        "invoice_key": "qg-inv:v1:1:INV-1015",
+        "label": "approval lane, first attempt",
+        "paid": true,
+        "tx": "C878A5ACD52521B31652AFF980288C090F309D325D2BBE4013868432B515E9E3"
+      },
+      {
+        "action": "pay",
+        "amount_uqor": 500000,
+        "chain_reason": "InvoiceAlreadyPaid(0x07b40b9108865f356945d73d66598e0d2eb98d5d50bed9f76bf927a9b6ea6ddc)",
+        "checked_at": "2026-11-27T23:24:41Z",
+        "expected": "REFUSED \u2014 InvoiceAlreadyPaid",
+        "invoice": "INV-1015",
+        "invoice_key": "qg-inv:v1:1:INV-1015",
+        "label": "agent lane after approval",
+        "paid": false,
+        "tx": "7E7D9E037DE441BBDF291235D8C423DD2F2A94A71CC48C94283F99D85A37EF3A"
+      },
+      {
+        "action": "pay_with_approval",
+        "amount_uqor": 500000,
+        "chain_reason": "InvoiceAlreadyPaid(0x07b40b9108865f356945d73d66598e0d2eb98d5d50bed9f76bf927a9b6ea6ddc)",
+        "checked_at": "2026-11-27T23:24:41Z",
+        "expected": "REFUSED \u2014 InvoiceAlreadyPaid",
+        "invoice": "INV-1015",
+        "invoice_key": "qg-inv:v1:1:INV-1015",
+        "label": "approval lane, second attempt",
+        "paid": false,
+        "tx": "FC02AADC7FFAABBF9F7BEEF446F9C7E24BD43F7BAAB9437BD94ADA3C181A6B66"
+      },
+      {
+        "action": "pay_with_approval",
+        "amount_uqor": 150000,
+        "chain_reason": "InvoiceAlreadyPaid(0xd87b33ed7d0e3db5607793b975b4bd2f8e130e2cd460c7be069d3e5c97c91eb2)",
+        "checked_at": "2026-11-27T23:24:41Z",
+        "expected": "REFUSED \u2014 InvoiceAlreadyPaid",
+        "invoice": "INV-1014",
+        "invoice_key": "qg-inv:v1:1:INV-1014",
+        "label": "approval after agent lane",
+        "paid": false,
+        "tx": "17394DAB7D0B80D825F6299143357C24B0BB5F21027A5A9CBEF4F4C69A88A458"
+      }
+    ],
+    "restart_output": "== plan (1 invoices)\n   INV-1014   cloud-hosting  150000 QOR  skip  already paid  [treasury contract]",
+    "restart_skipped_settled_invoice": true,
+    "settled_invoice_count": 2,
+    "settlements_per_invoice": {
+      "INV-1014": 1,
+      "INV-1015": 1
+    },
+    "window": {
+      "blocks": 600,
+      "expiry_height": 10877226,
+      "max_txs": 8,
+      "max_value_uqor": 3000000,
+      "targets": [
+        "0x3e9f072ffb0dc2cc07e4d5829a9f152556020a4a"
+      ],
+      "tx": "49B0F0002F64B74246284E72A2AE9D5851FE329D0145DF8501279BECB92E843F"
+    }
+  },
+  "setup": {
+    "approval_nonce": 2,
+    "caps": {
+      "daily": 400000,
+      "nonce": 2,
+      "per_tx": 300000,
+      "tx": "0xd507ce1eda191de3d4f080a718a7ea0519e1951897ab87c071f099ea7fbf1abf",
+      "vendor_id": 2
+    },
+    "checked_at": "2026-11-27T23:13:22Z",
+    "done": true,
+    "treasury_cap": {
+      "source": "constructor argument at deploy",
+      "tx": "0x0f9bdd45c235773f929d088c5fa12b690870258967a70cc0901dab571af8d65c",
+      "uqor": 1500000
+    },
+    "vendor_count": 2,
+    "vendors": [
+      {
+        "block": 10876130,
+        "label": "cloud-hosting",
+        "nonce": 0,
+        "status": "ok",
+        "tx": "0x58fbee5ab6cbbe136729a5fdf89be4549b1111a03d78ecf744b9dfdcba474914",
+        "vendor_id": 1
+      },
+      {
+        "block": 10876154,
+        "label": "api-credits",
+        "nonce": 1,
+        "status": "ok",
+        "tx": "0x09112478881b27fb7f92b58c986a2c61bf8cba14489a98a0cd11dca911a61b11",
+        "vendor_id": 2
+      }
+    ],
+    "window": {
+      "blocks": 400,
+      "expiry_height": 10876553,
+      "max_txs": 1,
+      "max_value_uqor": 500000,
+      "targets": [
+        "0x3e9f072ffb0dc2cc07e4d5829a9f152556020a4a"
+      ],
+      "tx": "84C25BBDCAD5B4DB4BA537FBAC51921062265086A11D6688AB8AFB55D05B28C0"
+    }
+  },
+  "token": {
+    "amount": 5,
+    "checked_at": "2026-11-27T23:18:09Z",
+    "currency": "fUSD",
+    "delta": 5,
+    "denom": "erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA",
+    "invoice": "INV-1016",
+    "paid": true,
+    "run_output": "== plan (1 invoices)\n   INV-1016   cloud-hosting      5 fUSD  pay   within the mandate  [native token lane]\n\n-- INV-1016: Inference credits, five fUSD, paid by the general run\n   tx      90A4F7003F4E6CC653E94006EAC6454D5F5376959ED9B481FAAAF125F234DBAC\n   result  PAID \n   receipt INV-1016 \u00b7 cloud-hosting \u00b7 5 fUSD \u00b7 90A4F7003F4E6CC6\u2026\n   intent  2f7967dba6c60bd662d610b1ce37262c\u2026 signed 64B",
+    "to": "qor1vd3kshzcvqkr238arazyelvjurm87mnjlr02d0",
+    "tx": "90A4F7003F4E6CC653E94006EAC6454D5F5376959ED9B481FAAAF125F234DBAC",
+    "vendor_after": 505,
+    "vendor_before": 500
+  }
+}

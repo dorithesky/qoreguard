@@ -11,8 +11,8 @@
     "bech32": "qor1zcsp7xup7y08czmc9z563x0qk3q6sm5827ftf8",
     "evm": "0x16201f1b81f11e7c0b7828a9a899e0b441a86e87"
   },
-  "contract": "0xa437ca5360214d4225ab3323da8f72db99250d92",
-  "deploy_tx": "0x3fc7c4e5c1f3175a10d47d8b4bb997c06d4208de5e9e080ae3c8188ca3114078",
+  "contract": "0x3e9f072ffb0dc2cc07e4d5829a9f152556020a4a",
+  "deploy_tx": "0x0f9bdd45c235773f929d088c5fa12b690870258967a70cc0901dab571af8d65c",
   "vendors": [
     {
       "id": 1,
@@ -40,5 +40,15 @@
     "denom": "erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA",
     "symbol": "fUSD"
   },
-  "policy_checked_at": "2026-11-27T12:20:00Z"
+  "policy_checked_at": "2026-11-27T23:12:21Z",
+  "previous_deployments": [
+    {
+      "contract": "0xa437ca5360214d4225ab3323da8f72db99250d92",
+      "deploy_tx": "0x3fc7c4e5c1f3175a10d47d8b4bb997c06d4208de5e9e080ae3c8188ca3114078",
+      "block": 10791349,
+      "label": "first run",
+      "note": "settled the first demo run; replaced by the guarded deployment"
+    }
+  ],
+  "deploy_block": 10876112
 }

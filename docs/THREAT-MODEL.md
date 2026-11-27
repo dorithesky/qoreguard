@@ -80,6 +80,15 @@ The agent cannot exceed the caps even if it tries: the demo deliberately walks i
 into three refusals (vendor cap, chain per-tx cap, treasury daily cap) and shows
 the chain's own words for each. The planner only proposes; it never enforces.
 
+**A7 — the same bill paid twice.** A crash and retry, two agent processes racing,
+a second machine with its own journal, or an app restart can all ask for the same
+invoice again. The contract answers: `paidInvoices[invoiceKey]` is written with
+the transfer and checked by `pay` and `payWithApproval` before any cap or
+signature, so the second attempt reverts `InvoiceAlreadyPaid` and no value leaves
+the owner's account. The agent's journal skip is a convenience on top of that, not
+the guarantee. The key is stable (`qg-inv:v1:<vendorId>:<invoiceId>`) and is not
+the payment's signed-intent memo, which changes every attempt by design.
+
 ## What is deliberately *not* protected
 
 - **The owner's device.** In production the ML-DSA-87 key sits in QoreX's Secure
@@ -105,3 +114,5 @@ the chain's own words for each. The planner only proposes; it never enforces.
 5. An approval for one (vendor, amount, memo, nonce) cannot pay another.
 6. An inactive precompile (empty return data) is refused, never read as
    "registered".
+7. No invoice key ever settles twice, on either lane, however often it is
+   replayed (`invariant_invoiceIsSettledAtMostOnce`).

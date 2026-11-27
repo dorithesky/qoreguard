@@ -131,45 +131,69 @@ def main() -> int:
     except Exception as exc:
         check("stale admin nonce refused", True, type(exc).__name__)
 
-    # 5. the agent lane: pay within caps, then twice over a cap
-    def pay(vid: int, amount: int, memo: str) -> dict:
-        tx = evm.send(OWNER_KEY, to=contract, data=T.calldata_pay(vid, amount, memo), value_wei=uqor_to_wei(amount), gas=300_000)
+    # 5. the agent lane: pay within caps, once per invoice, then over a cap
+    def pay(vid: int, amount: int, invoice_key: str) -> dict:
+        tx = evm.send(OWNER_KEY, to=contract, data=T.calldata_pay(vid, amount, invoice_key), value_wei=uqor_to_wei(amount), gas=300_000)
         return evm.wait(tx)
 
-    rec = pay(1, 150_000, "INV-1001")
+    key1001 = T.invoice_key("INV-1001", 1)
+    rec = pay(1, 150_000, key1001)
     check("pay 0.15 QOR to cloud-hosting", rec.ok)
     check("vendor spend recorded", int(view(T.SEL_SPENT_TODAY, ["uint256"], [1]), 16) == 150_000)
+    check("invoice recorded as settled", int(view(T.SEL_SETTLED_INVOICE_COUNT), 16) == 1)
 
-    rec = pay(1, 250_000, "INV-1002")
+    rec = pay(1, 150_000, key1001)
+    check("the same invoice cannot be paid twice", not rec.ok)
+
+    rec = pay(1, 250_000, T.invoice_key("INV-1002-pay", 1))
     check("pay above the 0.2 QOR vendor cap refused", not rec.ok)
 
-    rec = pay(2, 700_000, "INV-1003")
+    rec = pay(2, 700_000, T.invoice_key("INV-1003", 2))
     check("pay above the treasury day cap refused", not rec.ok)
 
     # 6. the exception path: an owner signature for exactly this payment
-    amount, memo = 500_000, "INV-1002 GPU burst overage above the agreed cap"
+    amount, key1002 = 500_000, T.invoice_key("INV-1002", 1)
     nonce = int(view(T.SEL_APPROVAL_NONCE), 16)
-    payload = T.payload_exception(1, amount, memo)
+    payload = T.payload_exception(1, amount, key1002)
     sig = mock_sign(T.admin_message(9800, contract, T.PAY_WITH_APPROVAL, payload, nonce))
     rec = evm.wait(
         evm.send(
             OWNER_KEY,
             to=contract,
-            data=T.calldata_pay_with_approval(1, amount, memo, nonce, pk, sig),
+            data=T.calldata_pay_with_approval(1, amount, key1002, nonce, pk, sig),
             value_wei=uqor_to_wei(amount),
             gas=300_000,
         )
     )
     check("owner-approved over-cap payment settles", rec.ok)
     check("treasury day spend is 0.65 QOR", int(view(T.SEL_TREASURY_SPENT_TODAY), 16) == 650_000)
+    check("two distinct invoices settled", int(view(T.SEL_SETTLED_INVOICE_COUNT), 16) == 2)
 
-    # the same signature cannot pay a different amount
+    # neither lane can revisit an invoice that is already settled
+    rec = pay(1, amount, key1002)
+    check("the agent lane cannot revisit an approved invoice", not rec.ok)
+    nonce = int(view(T.SEL_APPROVAL_NONCE), 16)
+    sig2 = mock_sign(T.admin_message(9800, contract, T.PAY_WITH_APPROVAL, payload, nonce))
+    rec = evm.wait(
+        evm.send(
+            OWNER_KEY,
+            to=contract,
+            data=T.calldata_pay_with_approval(1, amount, key1002, nonce, pk, sig2),
+            value_wei=uqor_to_wei(amount),
+            gas=300_000,
+        )
+    )
+    check("a second approval for the same invoice is refused", not rec.ok)
+    check("treasury day spend is still 0.65 QOR", int(view(T.SEL_TREASURY_SPENT_TODAY), 16) == 650_000)
+
+    # the same approval cannot pay a different invoice amount
+    other_key = T.invoice_key("INV-9999", 1)
     nonce = int(view(T.SEL_APPROVAL_NONCE), 16)
     try:
         tx = evm.send(
             OWNER_KEY,
             to=contract,
-            data=T.calldata_pay_with_approval(1, 900_000, memo, nonce, pk, sig),
+            data=T.calldata_pay_with_approval(1, 900_000, other_key, nonce, pk, sig),
             value_wei=uqor_to_wei(900_000),
             gas=300_000,
         )

@@ -11,6 +11,10 @@ artifacts) and says what it compared. Nothing is signed and nothing is sent.
 What it establishes
   * the deployed contract is the audited artifact (length, code, immutables),
   * the policy on chain is the policy demo/mandate.json describes,
+  * no invoice can be paid twice: the contract's `paidInvoices` record refuses
+    a repeat of a settled invoice on either lane, reproduced now by `eth_call`,
+  * every receipt carries the invoice's own currency and amount, and the token
+    invoice is never converted to QOR,
   * every payment and refusal in demo/journal.jsonl is a real transaction with
     the memo commitment the journal recorded,
   * the post-quantum gates still refuse, reproduced now by `eth_call`: a forged
@@ -24,8 +28,8 @@ What it establishes
     ML-DSA-87 signature the console verifies still verifies — while a changed
     byte does not,
   * the CBOM and the DORA/NIS2 reports describe this contract's own source,
-  * the recorded Foundry results (51 tests, 13 invariants, 100% of lines,
-    branches and functions, 19/19 mutants) belong to this exact source file.
+  * the recorded Foundry results (58 tests, 15 invariants, 100% of lines,
+    branches and functions, 22/22 mutants) belong to this exact source file.
 """
 from __future__ import annotations
 
@@ -101,7 +105,25 @@ def main() -> int:
     mandate = json.loads((ROOT / "demo" / "mandate.json").read_text())
     journal = [json.loads(line) for line in (ROOT / "demo" / "journal.jsonl").read_text().splitlines() if line.strip()]
     p1 = json.loads((ROOT / "demo" / "p1.json").read_text())
+    guard_path = ROOT / "demo" / "guard.json"
+    guard = json.loads(guard_path.read_text()) if guard_path.exists() else {}
+    receipts_doc = json.loads((ROOT / "demo" / "receipts.json").read_text())
+    invoices = {i["id"]: i for i in json.loads((ROOT / "demo" / "invoices.json").read_text())["invoices"]}
     features = json.loads((ROOT / "demo" / "onchain_features.json").read_text())
+
+    # Payments made before the guarded deployment carry no `contract` field; the
+    # first entry in `previous_deployments` is the deployment they settled on.
+    previous = addrs.get("previous_deployments", [])
+    legacy_contract = previous[0]["contract"].lower() if previous else ""
+
+    def on_current(entry: dict) -> bool:
+        return (entry.get("contract") or "").lower() == contract.lower()
+
+    def on_contract(entry: dict, address: str) -> bool:
+        recorded = (entry.get("contract") or "").lower()
+        if not recorded:
+            return address.lower() == legacy_contract
+        return recorded == address.lower()
     artifact = json.loads((ROOT / "contracts" / "out" / "QoreGuardTreasury.sol" / "QoreGuardTreasury.json").read_text())
 
     def view(selector: bytes, types=None, values=None) -> str:
@@ -195,11 +217,22 @@ def main() -> int:
     r.check("the policy on chain is the recorded policy (payees, caps, active)", policy)
 
     def spent_ledger() -> str:
-        settled = [e for e in journal if e.get("chain_success") and e.get("kind") == "payment"]
         total = int(view(T.SEL_TOTAL_SPENT), 16)
-        expected = sum(e["amount_uqor"] for e in settled)
+        settled = [e for e in journal if e.get("chain_success") and e.get("kind") == "payment"]
+        mine = [e for e in settled if on_current(e)]
+        expected = sum(e["amount_uqor"] for e in mine)
         expect(total == expected, f"contract totalSpentUqor {total} vs journal {expected}")
-        return f"totalSpentUqor {total:,} uqor = {len(settled)} settled payments"
+        earlier = 0
+        for prev in previous:
+            old_total = int(evm.eth_call(prev["contract"], T.SEL_TOTAL_SPENT), 16)
+            old_entries = [e for e in settled if on_contract(e, prev["contract"])]
+            old_sum = sum(e["amount_uqor"] for e in old_entries)
+            expect(old_total == old_sum,
+                   f"{prev.get('label', 'earlier')} totalSpentUqor {old_total} vs journal {old_sum}")
+            earlier += old_sum
+        note = f"; {earlier:,} uqor on the earlier deployment" if earlier else ""
+        return f"totalSpentUqor {total:,} uqor = {len(mine)} settled payments{note}"
+
 
     r.check("the contract's spend total equals the settled payments", spent_ledger)
 
@@ -584,7 +617,7 @@ def main() -> int:
     def outflows() -> str:
         """The money that actually moved, not just the memo that was recorded."""
         settled = [e for e in journal if e.get("chain_success") and e.get("kind") == "payment"]
-        total = 0
+        per_contract: dict[str, int] = {}
         for e in settled:
             moved = 0
             for ev in tx_events(e["tx_hash"]):
@@ -597,12 +630,116 @@ def main() -> int:
                 if amount.endswith("uqor"):
                     moved += int(amount.removesuffix("uqor"))
             expect(moved == e["amount_uqor"], f"{e.get('invoice')}: moved {moved}, journal {e['amount_uqor']}")
-            total += moved
+            address = (e.get("contract") or legacy_contract).lower()
+            per_contract[address] = per_contract.get(address, 0) + moved
         spent = int(view(T.SEL_TOTAL_SPENT), 16)
-        expect(total == spent, f"outflows {total} vs totalSpentUqor {spent}")
-        return f"{len(settled)} payments moved {total:,} uqor out of the owner's account, equal to totalSpentUqor"
+        expect(per_contract.get(contract.lower(), 0) == spent,
+               f"outflows {per_contract.get(contract.lower(), 0)} vs totalSpentUqor {spent}")
+        earlier = sum(v for k, v in per_contract.items() if k != contract.lower())
+        note = f" ({earlier:,} more on the earlier deployment)" if earlier else ""
+        return (f"{len(settled)} payments moved {spent:,} uqor into this contract's ledger, "
+                f"and each moved exactly what its journal entry names{note}")
+
 
     r.check("the money that moved equals the contract's all-time total", outflows)
+
+    # ------------------------------------------------------------------ #
+    # one invoice, one payment — on chain
+    # ------------------------------------------------------------------ #
+    def invoice_record() -> str:
+        rec = guard.get("pay") or {}
+        payments = rec.get("payments") or []
+        expect(payments, "demo/guard.json holds no duplicate-matrix payments — run scripts/run_guard.py pay")
+        first = next(p for p in payments if p["paid"])
+        entry = next(e for e in journal if e.get("tx_hash") == first["tx"])
+        key = T.invoice_key_hash(first["invoice"], int(entry["vendor_id"]))
+        stored = int(evm.eth_call(contract, T.SEL_PAID_INVOICES + abi_encode(["bytes32"], [key])), 16)
+        expect(stored == 1, f"paidInvoices({first['invoice']}) is {stored}")
+        count = int(view(T.SEL_SETTLED_INVOICE_COUNT), 16)
+        settled = [e for e in journal if on_current(e) and e.get("chain_success") and e.get("kind") == "payment"]
+        expect(count == len(settled), f"settledInvoiceCount {count} vs {len(settled)} payments on this contract")
+        return f"paidInvoices records {count} settled invoices, one per payment on this contract"
+
+    r.check("the contract records each settled invoice, once", invoice_record)
+
+    def duplicate_refused() -> str:
+        """Ask the live contract, now, to pay an invoice it already settled."""
+        rec = guard.get("pay") or {}
+        paid = [p for p in (rec.get("payments") or []) if p["paid"]]
+        expect(paid, "no settled guard payment to replay")
+        p = paid[0]
+        entry = next(e for e in journal if e.get("tx_hash") == p["tx"])
+        vendor_id = int(entry["vendor_id"])
+        amount = int(entry["amount_uqor"])
+        key = T.invoice_key(p["invoice"], vendor_id)
+        sig = revert_of(T.calldata_pay(vendor_id, amount, key), value_wei=amount * T.WEI_PER_UQOR)
+        expect("InvoiceAlreadyPaid" in sig, f"the same pay() call did not report a duplicate: {sig}")
+        nonce = int(view(T.SEL_APPROVAL_NONCE), 16)
+        sig2 = revert_of(
+            T.calldata_pay_with_approval(vendor_id, amount, key, nonce, bytes(2592), bytes(4627)),
+            value_wei=amount * T.WEI_PER_UQOR,
+        )
+        expect("InvoiceAlreadyPaid" in sig2, f"the approval lane did not report a duplicate: {sig2}")
+        return f"{p['invoice']} is refused on both lanes now: {sig} / {sig2}"
+
+    r.check("an invoice that is already settled is refused on both lanes", duplicate_refused)
+
+    def duplicate_matrix() -> str:
+        rec = guard.get("pay") or {}
+        payments = rec.get("payments") or []
+        expect(payments, "no duplicate matrix recorded")
+        for p in payments:
+            body = http.get(f"{addrs['rest']}/cosmos/tx/v1beta1/txs/{p['tx']}").json()
+            txr = body.get("tx_response", {})
+            expect(int(txr.get("code", 1)) == 0, f"{p['label']}: tx code {txr.get('code')}")
+            entry = next(e for e in journal if e.get("tx_hash") == p["tx"])
+            expect(bool(entry.get("chain_success")) == bool(p["paid"]),
+                   f"{p['label']}: journal and guard.json disagree on the outcome")
+            if not p["paid"]:
+                expect("InvoiceAlreadyPaid" in (p.get("chain_reason") or ""),
+                       f"{p['label']}: recorded refusal {p.get('chain_reason')}")
+        expect(rec.get("one_deposit_each") is True, "the vendor was not paid exactly once per invoice")
+        return (f"{len(payments)} attempts on chain, {sum(1 for p in payments if p['paid'])} deposits: "
+                f"the vendor's balance grew by exactly the two settled invoices")
+
+    r.check("the duplicate matrix moved money once per invoice", duplicate_matrix)
+
+    # ------------------------------------------------------------------ #
+    # receipts: invoice currency == payment currency == receipt currency
+    # ------------------------------------------------------------------ #
+    def receipts_match() -> str:
+        receipts = receipts_doc.get("receipts") or []
+        expect(receipts, "demo/receipts.json is empty — run scripts/make_receipts.py")
+        settled = [e for e in journal if e.get("chain_success") and e.get("kind") in {"payment", "token_payment"}]
+        expect(len(receipts) == len(settled), f"{len(receipts)} receipts for {len(settled)} settled payments")
+        for r in receipts:
+            inv = invoices.get(r["invoice"])
+            expect(inv is not None, f"receipt {r['invoice']} has no invoice")
+            expect(r["invoice_amount"] == inv["amount_uqor"], f"{r['invoice']}: receipt amount differs from the invoice")
+            expect(r["invoice_denom"] == (inv.get("denom") or "uqor"), f"{r['invoice']}: receipt denom differs from the invoice")
+            expect(r["matches_invoice"] is True, f"{r['invoice']}: receipt does not agree with its invoice")
+            expect(r["paid_currency"] == r["invoice_currency"], f"{r['invoice']}: paid in another currency")
+            expect(r["paid_amount"] == inv["amount_uqor"], f"{r['invoice']}: paid another amount")
+            entry = next((e for e in settled if e.get("tx_hash") == r["tx"]), None)
+            expect(entry is not None, f"{r['invoice']}: receipt tx is not a settled payment")
+        token = next((r for r in receipts if r["invoice"] == "INV-1013"), None)
+        expect(token is not None, "no receipt for the fUSD invoice")
+        expect(token["amount_label"] == "500 fUSD", f"INV-1013 receipt says {token['amount_label']}")
+        return (f"{len(receipts)} receipts agree with their invoices; INV-1013 is 500 fUSD in the invoice, "
+                "the payment and the receipt")
+
+    r.check("every receipt carries its invoice's own currency and amount", receipts_match)
+
+    def dashboard_currency() -> str:
+        html = (ROOT / "web" / "index.html").read_text()
+        rows = [m.group(0) for m in re.finditer(r"<tr>(?:(?!</tr>).)*INV-1013(?:(?!</tr>).)*</tr>", html, re.S)]
+        expect(rows, "the dashboard has no INV-1013 row — run scripts/render_dashboard.py")
+        for row in rows:
+            expect("500 fUSD" in row, f"an INV-1013 row does not say 500 fUSD: {row[:160]}")
+            expect("QOR" not in row, f"an INV-1013 row still converts the token to QOR: {row[:160]}")
+        return f"{len(rows)} dashboard rows for INV-1013, each 500 fUSD and never QOR"
+
+    r.check("the dashboard shows the token invoice in its own currency", dashboard_currency)
 
     def anomaly_hook() -> str:
         """QoreChain runs its own anomaly check on every abstract-account

@@ -7,7 +7,9 @@ page points each one at something a reviewer can check in under a minute.
 
 | Claim | Where it happens |
 | --- | --- |
-| The agent pays registered vendors inside the caps | 4 payments in `docs/EVIDENCE.md`, vendor balances on chain (1.25 / 0.75 QOR) |
+| The agent pays registered vendors inside the caps | 7 payments across two deployments in `docs/EVIDENCE.md`, vendor balances on chain |
+| An invoice is paid once, on either lane, however many times it is requested | `paidInvoices` in the contract; INV-1014/INV-1015 each settled once and four repeat attempts refused with `InvoiceAlreadyPaid`; `demo/guard.json` |
+| An invoice, its payment and its receipt carry the same currency and amount | `demo/receipts.json` (9 receipts), the dashboard's invoice list, ledger and receipt table; INV-1013 = 500 fUSD everywhere |
 | Caps are enforced by the chain and the contract | 5 refusals with the exact revert/chain reason |
 | The policy can only change with the owner's ML-DSA-87 signature | 8 admin actions, each an `addVendor`/`setVendorCaps`/`setTreasuryCap` call carrying a 4,627-byte signature |
 | An over-cap payment is possible only with a fresh owner signature | `payWithApproval` tx `8C097EC8…` |
@@ -16,9 +18,9 @@ page points each one at something a reviewer can check in under a minute.
 | The agent pays a stablecoin invoice itself | `MsgExecuteCosmos` of 500 fUSD, tx `3DAD3DF9…`; the vendor's account holds it |
 | Invoices are archived encrypted | 10 envelopes sealed to the owner's ML-KEM-1024 key, archive digest on chain (`33B776A0…`) |
 
-Reproduce: **`python verify.py`** (40 read-only checks against the live chain, no
-keys needed), `node scripts/test_web.mjs` (the lab page's own module: seven
-refusals and a signature verification), `scripts/local_integration.sh` (12
+Reproduce: **`python verify.py`** (45 read-only checks against the live chain, no
+keys needed), `node scripts/test_web.mjs` (the lab page's own module: eight
+refusals and a signature verification), `scripts/local_integration.sh` (18
 checks, no network) and `python -m qoreguard.cli run`.
 
 ## 2. QoreChain technology used, verified in repo and on chain — 25%
@@ -39,7 +41,7 @@ checks, no network) and `python -m qoreguard.cli run`.
 
 | QoreScan | `docs/cbom.json` (CycloneDX 1.6), `docs/DORA-REPORT.md`, `docs/NIS2-REPORT.md`; `verify.py` re-reads every citation |
 | QoreX | `web/qorex.html` — `window.qorex.native.signArbitrary` + `verifyMessageWithChain` over the chain's own key |
-| Test depth | 51 Foundry tests, 13 invariants over an 8-action handler, 100 % of lines/statements/branches/functions, 19/19 mutants (`docs/verification.json`) |
+| Test depth | 58 Foundry tests, 15 invariants over a 9-action handler, 100 % of lines/statements/branches/functions, 22/22 mutants (`docs/verification.json`) |
 | CI | `.github/workflows/daily-verify.yml`: daily `forge test` + `verify.py`, no secret |
 
 Kits: `qorechain-sdk`, `qorechain-qoreseal`, `qorechain-qoresign`,
@@ -72,7 +74,7 @@ or touch another protocol.
   builder traps found the hard way, honest limitations.
 - `web/index.html`: a dashboard generated from the chain (vendors, caps, spend
   bars, ledger, refusals, PQ-verified admin events). `python scripts/render_dashboard.py`.
-- `demo/qoreguard-demo.mp4`: 2:16 captioned walkthrough, every number copied from
+- `demo/qoreguard-demo.mp4`: 2:28 captioned walkthrough, every number copied from
   the deployment record and the journal.
 - `docs/EVIDENCE.md`: generated from the chain, one row per transaction.
 - `docs/JUDGES.md`: the five-minute tour — run `verify.py`, read what is on

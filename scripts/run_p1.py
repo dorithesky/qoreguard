@@ -328,9 +328,12 @@ def cmd_approve() -> dict:
 
     memo_prefix = f"{invoice.id} {invoice.memo}"
     intent = agent.build_intent(vendor.id, vendor.label, amount, memo_prefix)
-    payload = T.payload_exception(vendor.id, amount, intent.onchain_memo)
+    key = T.invoice_key(invoice.id, vendor.id)
+    payload = T.payload_exception(vendor.id, amount, key)
     onchain_sig = agent.owner_sign(T.PAY_WITH_APPROVAL, payload, approval_nonce)
-    decision = agent.pay(vendor.id, vendor.label, amount, memo_prefix, approval=onchain_sig, intent=intent)
+    decision = agent.pay(
+        vendor.id, vendor.label, amount, memo_prefix, approval=onchain_sig, intent=intent, invoice_key=key
+    )
 
     record = {
         "invoice": invoice.id,
@@ -347,6 +350,7 @@ def cmd_approve() -> dict:
         "sealed_envelope_sha256": sealed.envelope_sha256,
         "sealed_memo": sealed.memo,
         "intent_memo": intent.onchain_memo,
+        "invoice_key": key,
         "tx": decision.tx_hash,
         "paid": decision.chain_success,
         "chain_reason": decision.chain_reason,
