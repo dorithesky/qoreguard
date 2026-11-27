@@ -30,7 +30,7 @@ no keys, no writes**.
    ┌───────────────────────────────────────────────────────────────────┐
    │ QoreChain testnet — gate 1: the account's own rules               │
    │  · permission: send, evm (no deploy, no admin)                    │
-   │  · spending rule: ≤0.6 QOR/tx, ≤1.5 QOR/day, uqor only            │
+   │  · spending rule: ≤0.6 QOR/tx, ≤1.5 QOR/day, uqor + fUSD          │
    │  · allowed EVM calls: pay() and payWithApproval() on the          │
    │    treasury contract — nothing else, not even a transfer          │
    │  · relayer pays the fee; the owner's ML-DSA key never leaves home │
