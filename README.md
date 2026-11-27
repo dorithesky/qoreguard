@@ -16,8 +16,10 @@ account: invoices archived **encrypted to the owner's ML-KEM-1024 key**
 (QoreSeal), over-cap payments approved by the owner as a **Sign-In-With-QoreChain
 signature** verified against the on-chain ML-DSA-87 key (QoreSign), and a
 **stablecoin invoice settled in fUSD** by the same agent under the same spending
-rule (test tokens). `python verify.py` re-checks all of it read-only: **23 checks,
-no keys, no writes**.
+rule (test tokens). `python verify.py` re-checks all of it read-only: **40 checks,
+no keys, no writes**. Two static pages let a judge press the refusals in a
+browser with no wallet: [`web/lab.html`](https://dorithesky.github.io/qoreguard/web/lab.html)
+and the [`QoreX signing console`](https://dorithesky.github.io/qoreguard/web/qorex.html).
 
 ```
                        ┌──────────────────────────────────────────────┐
@@ -59,6 +61,9 @@ no keys, no writes**.
 | Sealed invoices | 10 envelopes, archive digest committed on chain (`qg:seal-archive:v1:19527ac1…`) |
 | Owner approval | SIWQ message verified against the on-chain ML-DSA-87 key, then paid on chain |
 | Ship Weeks | 4/4 badges (first hybrid tx, first swap in a pool, first QoreSeal key, first PQC-checking contract) |
+| Tests | **51 Foundry tests**, **13 invariants** over an 8-action handler, **100 %** of lines, statements, branches and functions, **19/19 mutants killed** (`docs/verification.json`) |
+| Inventory | [`docs/cbom.json`](docs/cbom.json) — QoreScan CycloneDX 1.6 CBOM, with [`docs/DORA-REPORT.md`](docs/DORA-REPORT.md) and [`docs/NIS2-REPORT.md`](docs/NIS2-REPORT.md) |
+| CI | `.github/workflows/daily-verify.yml` — every day, `forge test` + `python verify.py` on a machine we do not control, with no secret configured |
 | Evidence | [`docs/EVIDENCE.md`](docs/EVIDENCE.md) — generated from the chain · [`docs/JUDGES.md`](docs/JUDGES.md) — a 5-minute tour |
 
 ## Why two gates
@@ -85,6 +90,32 @@ The read side of the agent goes through the **`qorechain-mcp`** server
 lookups are MCP tool calls, so the same answers are available to any MCP client
 without credentials — and none of those tools can write.
 
+## What a judge can press, without a wallet
+
+| Surface | What it does | Why it is not a mock |
+| --- | --- | --- |
+| [`web/lab.html`](https://dorithesky.github.io/qoreguard/web/lab.html) | seven refusal experiments, each an `eth_call` from the page: over-cap, unknown vendor, forged ML-DSA-87 signature, memo ≠ value, stale approval nonce, a non-owner sender, a one-byte signature | the page holds **no key**; the revert comes back from the deployed contract, decoded by selector |
+| [`web/qorex.html`](https://dorithesky.github.io/qoreguard/web/qorex.html) | `window.qorex.native.signArbitrary(chainId, address, data)` for a QoreX wallet, then `verifyMessageWithChain` — the browser verifies an ML-DSA-87 signature against the key the chain holds | the key is read from the `pqcKeyStatus` precompile (`0x…0a02`) that the contract itself calls, and one changed byte is refused in the page |
+
+Neither page can sign, so neither can move money. They exist to make the
+refusals and the post-quantum check something a reviewer can watch rather than
+read.
+
+## Inventory and regulation
+
+`qorescan` reads the chain and this repository's Solidity and writes:
+
+```
+docs/cbom.json          CycloneDX 1.6: ML-DSA-87 (FIPS 204, post-quantum),
+                        ECDSA secp256k1 / Ed25519 (quantum-vulnerable), Keccak-256
+docs/DORA-REPORT.md     DORA RTS 2024/1774 Article 6 mapping, per algorithm
+docs/NIS2-REPORT.md     EU NIS Cooperation Group PQC roadmap mapping
+```
+
+The citations are checkable: `verify.py` reads every `QoreGuardTreasury.sol:N`
+line the CBOM points at and confirms the primitive is there, and confirms both
+reports cite the same CBOM serial and list the same algorithms.
+
 ## The seven chain features this build uses
 
 1. **Hybrid ML-DSA-87 transactions** (`qorsdk` hybrid sign-bytes v2) for every
@@ -106,13 +137,18 @@ without credentials — and none of those tools can write.
 ## Repository layout
 
 ```
-verify.py             read-only re-check of everything below (23 checks, no keys)
-contracts/            Foundry project: QoreGuardTreasury.sol, mocks, 23 tests
+verify.py             read-only re-check of everything below (40 checks, no keys)
+contracts/            Foundry project: treasury, mocks, 51 tests (13 invariants)
 agent/qoreguard/      chain, evm, treasury ABI, planner, agent, CLI,
                       sealing (QoreSeal), approvals (QoreSign/SIWQ), mcpread (MCP)
-demo/                 mandate, signed invoices, journal, p1.json, sealed/ envelopes
-scripts/              key bootstrap, invoice signing, demo runners, dashboard
-docs/                 JUDGES.md, evidence, threat model, rubric map, submission copy
+demo/                 mandate, signed invoices, journal, p1.json, sealed/ envelopes,
+                      qorex-console.json (the signature the console verifies)
+scripts/              key bootstrap, invoice signing, demo runners, dashboard,
+                      mutate.py (mutation testing), record_tests.py (Foundry evidence),
+                      build_web.py (the two pages), test_web.mjs (their module in Node)
+web/                  dashboard, attack lab, QoreX console (static, no server, no key)
+docs/                 JUDGES.md, evidence, threat model, rubric map, submission copy,
+                      cbom.json, DORA-REPORT.md, NIS2-REPORT.md, verification.json
 AI_USAGE.md           how this was built with AI (Best AI-Native Build entry)
 ```
 
@@ -164,7 +200,11 @@ authenticator nonce, and the contract's vendors, caps and spend ledger.
 ```bash
 cd contracts
 forge install foundry-rs/forge-std  # once
-forge test                          # 23 tests: policy, PQ gate, encoding parity
+forge test                          # 51 tests: policy, PQ gate, encoding parity,
+                                    # fuzz, and 13 invariants over an 8-action handler
+forge coverage --report summary --no-match-coverage "test|mocks|lib"   # 100/100/100/100
+python scripts/mutate.py            # 19 mutants, all must be killed
+python scripts/record_tests.py      # writes docs/verification.json (source digest + results)
 ```
 
 ```bash
@@ -202,10 +242,14 @@ that an approval for 0.5 QOR cannot pay 0.9 QOR.
 - The demo pays 0.1–0.7 QOR test amounts. Nothing here touches real funds.
 - The agent's planner is deterministic; the optional LLM annotation never
   changes an action (see `AI_USAGE.md`).
-- The owner signs admin messages from a script in this repo. In production the
-  same bytes would be signed inside QoreX, which holds the ML-DSA-87 key in the
-  Secure Enclave. The same holds for the SIWQ approval: `approvals.sign()` runs
-  from the owner's mnemonic here, and in a deployment it runs in the wallet.
+- The owner signs admin messages from a script in this repo. `web/qorex.html`
+  implements the production path — `window.qorex.native.signArbitrary` plus
+  `verifyMessageWithChain` — but no QoreX wallet was installed in the browser we
+  built it in, so the page cannot demonstrate the *signing* half there; it
+  verifies a real recorded signature, and refuses a changed byte, in the page.
+  The recorded signature was made by `scripts/qorex_console.py` with the owner's
+  hybrid key over exactly the bytes the page displays
+  (`demo/qorex-console.json`), in the same wire format the wallet produces.
 - The sealed invoices are published twice on purpose: the envelopes (which need
   the owner's ML-KEM secret key) and, for the demo only, their plaintext, so a
   reviewer can check that opening an envelope returns the same bytes.

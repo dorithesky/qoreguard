@@ -13,7 +13,7 @@ limit, and the only way to change a limit is a fresh **ML-DSA-87** signature fro
 the owner that the contract verifies on chain with `pqcVerify`. A stolen
 classical key — the Q-Day scenario — changes nothing.
 
-**Track:** Post-Quantum AI Agents · **Repo:** this one · **Video:** `demo/qoreguard-demo.mp4` (2:08)
+**Track:** Post-Quantum AI Agents · **Repo:** this one · **Video:** `demo/qoreguard-demo.mp4` (2:16)
 
 ---
 
@@ -23,7 +23,7 @@ classical key — the Q-Day scenario — changes nothing.
 python verify.py
 ```
 
-23 checks, no keys, nothing signed, ~40 seconds. It compares the deployed
+40 checks, no keys, nothing signed, ~60 seconds. It compares the deployed
 bytecode to the audited artifact, reads the policy and the spend ledger from the
 contract, re-fetches every payment and refusal from the chain, re-verifies the
 owner's SIWQ approval against the on-chain key, opens the sealed archive
@@ -38,7 +38,24 @@ PASS  a tampered or replayed approval is refused
 PASS  the fUSD invoice settled to the vendor's account   the vendor holds 500 fUSD
 ```
 
-`python verify.py --json` gives the same result machine-readably.
+`python verify.py --json` gives the same result machine-readably. It also checks
+the browser surfaces (the page embeds the policy the chain holds, the precompile
+answers, the recorded signature verifies and a changed byte does not), the CBOM
+and the DORA/NIS2 reports, and that the recorded Foundry results belong to this
+exact contract source.
+
+---
+
+## 1:00 — press something instead of reading (no wallet, no key, no install)
+
+| Page | Press | You should see |
+| --- | --- | --- |
+| [web/lab.html](https://dorithesky.github.io/qoreguard/web/lab.html) | **Run all seven** | seven `eth_call`s, each refused by the deployed contract with its own error: `PerVendorTxCapExceeded`, `UnknownVendor`, `BadPqcSignature`, `ValueMismatch`, `StaleApprovalNonce`, `NotOwnerAccount`, `BadPqcSignature` |
+| web/lab.html | **Verify the recorded signature** | the owner's 215-byte message verifies in your browser against the ML-DSA-87 key the chain holds; **Verify a copy with one byte changed** is refused |
+| [web/qorex.html](https://dorithesky.github.io/qoreguard/web/qorex.html) | **Verify the recorded owner signature** | `verifyMessageWithChain` from `@qorechain/qoresign/network`, over the key read from the `pqcKeyStatus` precompile |
+| web/qorex.html | **Connect QoreX** | the production signing path: `window.qorex.native.signArbitrary`. Enabled only if a QoreX wallet is installed in your browser |
+
+The pages hold no key and send no transaction, which is why they can only ask.
 
 ---
 
@@ -84,11 +101,11 @@ enforced by `x/abstractaccount`, outside every contract this project wrote.
 
 | Criterion (weight) | Look at |
 | --- | --- |
-| **Works as described (25%)** | `python verify.py`; the dashboard `web/index.html`; `demo/journal.jsonl` (every decision, including refusals); `docs/EVIDENCE.md` |
-| **QoreChain usage (25%)** | 4/4 Ship Weeks badges; features: hybrid ML-DSA-87 txs, authenticator lane + spending rules, scoped EVM windows, `pqcVerify`/`pqcKeyStatus` in Solidity, ML-KEM registry, native AMM swap, test-token settlement; kits: SDK, Foundry, QoreSeal, QoreSign, QoreChain MCP |
+| **Works as described (25%)** | `python verify.py` (40 checks); the **attack lab** and **QoreX console** above; the dashboard `web/index.html`; `demo/journal.jsonl` (every decision, including refusals); `docs/EVIDENCE.md` |
+| **QoreChain usage (25%)** | 4/4 Ship Weeks badges; features: hybrid ML-DSA-87 txs, authenticator lane + spending rules, scoped EVM windows, `pqcVerify`/`pqcKeyStatus` in Solidity, ML-KEM registry, native AMM swap, test-token settlement; kits: SDK, QoreSeal, QoreSign, QoreChain MCP, **QoreScan** (CBOM + DORA/NIS2), QoreX (wallet API + `verifyMessageWithChain`); **51 Foundry tests, 13 invariants, 100 % coverage, 19/19 mutants**; a daily GitHub Actions re-run with no secret |
 | **Post-quantum correctness (20%)** | `docs/THREAT-MODEL.md`; the `pqcVerify` gate in `contracts/src/QoreGuardTreasury.sol` (`_verifyOwnerSignature`); `SIWQ require_pq=True`; the Q-Day check transaction |
 | **Originality (15%)** | two independent gates (chain rule *and* contract policy) with the owner's ML-DSA key as the only way through; the agent signs intents, the relayer pays fees, the owner's key never leaves home |
-| **Clarity & UX (15%)** | this file, `README.md`, `docs/RUBRIC.md`, the single-file chain-derived dashboard, the 2:08 video |
+| **Clarity & UX (15%)** | this file, `README.md`, `docs/RUBRIC.md`, the single-file chain-derived dashboard, the two static pages, the 2:16 video |
 
 ---
 
@@ -110,9 +127,12 @@ change the policy? ──► fresh ML-DSA-87 signature ──► pqcVerify(0x…
 - Testnet only. The `x/abstractaccount` module and the PQC precompiles are not on
   mainnet today; everything here is on `qorechain-diana`.
 - Amounts are test amounts (0.1–0.7 QOR, 500 fUSD). Nothing has value.
-- The owner's keys live in `.keys/` (gitignored, mode 600) for the demo. In
-  production the same signatures happen inside QoreX/the owner's wallet; only the
-  verification path — which is what this repo demonstrates — stays the same.
+- The owner's keys live in `.keys/` (gitignored, mode 600) for the demo. The
+  production path is `web/qorex.html` (`window.qorex.native.signArbitrary` +
+  `verifyMessageWithChain`); no QoreX wallet was installed in the browser this
+  was built in, so the page demonstrates the verification half live and leaves
+  the signing buttons disabled, with the recorded signature in
+  `demo/qorex-console.json` as the reference.
 - The demo also publishes the plaintext of the sealed invoices so you can check
   that opening an envelope returns the same bytes. In production only the
   envelopes exist.

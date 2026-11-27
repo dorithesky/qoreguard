@@ -74,6 +74,16 @@ chain; one owner-approved exception that settled; one PQ-signed cap change; one
 revoked`; and a Q-Day check where the owner's classical key submits a
 `setTreasuryCap` with a forged PQ signature — mined, reverted, policy unchanged.
 
+**What a reviewer can press.** `web/lab.html` runs seven refusals in the browser
+as `eth_call`s — the page holds no key, so it can only ask and be refused — and
+verifies the owner's recorded ML-DSA-87 signature against the key the chain
+holds. `web/qorex.html` is the production signing path
+(`window.qorex.native.signArbitrary` + `verifyMessageWithChain`). The contract
+carries 51 Foundry tests, 13 invariants over an 8-action handler, 100 % line /
+statement / branch / function coverage and 19/19 killed mutants; a QoreScan CBOM
+with DORA and NIS2 mappings sits in `docs/`; and a daily GitHub Actions run
+re-executes `forge test` and `python verify.py` with no secret configured.
+
 **Why this is AI-native.** The build itself used an AI workflow (documented in
 `AI_USAGE.md`), and the design keeps AI out of the trust path: the agent may be
 wrong, and the chain does not care.

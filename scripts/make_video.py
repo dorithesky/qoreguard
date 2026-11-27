@@ -106,17 +106,30 @@ def journal() -> list[dict]:
 
 def build_slides() -> list[Slide]:
     dep = load_json(ROOT / ".keys" / "deployment.json", {})
+    addrs = load_json(ROOT / "demo" / "addresses.json", {})
+    p1 = load_json(ROOT / "demo" / "p1.json", {})
+    features = load_json(ROOT / "demo" / "onchain_features.json", {})
+    verification = load_json(ROOT / "docs" / "verification.json", {})
+    cbom = load_json(ROOT / "docs" / "cbom.json", {})
     entries = journal()
     paid = [e for e in entries if e.get("chain_success")]
     refused = [
         e for e in entries
         if e.get("chain_success") is False and "gas" not in (e.get("chain_reason") or "").lower()
     ]
-    contract = dep.get("contract", "0x…")
+    contract = dep.get("contract") or addrs.get("contract", "0x…")
+
+    tests = verification.get("tests", {})
+    coverage = verification.get("coverage", {})
+    mutation = verification.get("mutation", {})
+    approval = p1.get("approval", {})
+    seal = p1.get("seal", {})
+    token = p1.get("token", {})
+    algorithms = len([c for c in cbom.get("components", []) if (c.get("cryptoProperties") or {}).get("assetType") == "algorithm"])
 
     slides: list[Slide] = []
 
-    s = Slide("Build Before Q-Day · Post-Quantum AI Agents", "QoreGuard", 7)
+    s = Slide("Build Before Q-Day · Post-Quantum AI Agents", "QoreGuard", 6)
     s.say("A treasury agent that pays bills.", TEXT, "big")
     s.say("Its limits are enforced by the chain, not by its own code.", MUTED, "big")
     s.say(
@@ -126,7 +139,7 @@ def build_slides() -> list[Slide]:
     )
     slides.append(s)
 
-    s = Slide("Problem", "An agent with a wallet has no real limits", 13)
+    s = Slide("Problem", "An agent with a wallet has no real limits", 11)
     s.say("Today: the spending limit is a line of code next to the private key.", TEXT)
     s.say("Steal the key, or inject one invoice, and the limit disappears with it.", TEXT)
     s.say("", style="gap")
@@ -137,66 +150,53 @@ def build_slides() -> list[Slide]:
     s.say("· changing any of it needs an ML-DSA-87 signature, verified on chain", PURPLE, "small")
     slides.append(s)
 
-    s = Slide("Architecture", "Two independent gates", 14)
+    s = Slide("Architecture", "Two independent gates", 12)
     s.say("agent (ed25519, no funds)  →  MsgExecuteEVM  →  relayer pays the fee", TEXT, "mono")
     s.say("", style="gap")
     s.say("gate 1 — the account's spending rule (x/abstractaccount)", ACCENT, "h2")
-    s.say("permissions: send, evm   limits: 0.6 QOR/tx, 1.5 QOR/day, uqor only", TEXT, "mono")
+    s.say("permissions: send, evm   limits: 0.6 QOR/tx, 1.5 QOR/day, uqor + fUSD", TEXT, "mono")
     s.say("allowed EVM calls: pay() and payWithApproval() on one contract", TEXT, "mono")
     s.say("", style="gap")
     s.say("gate 2 — QoreGuardTreasury.sol", PURPLE, "h2")
     s.say("vendor allowlist · per-vendor caps · treasury daily cap · events", TEXT, "mono")
     s.say("policy changes: pqcVerify(0x…0a01) over the owner's ML-DSA-87 signature", TEXT, "mono")
-    s.say("", style="gap")
-    s.say("A stolen agent key can reach two functions, within one day's cap.", OK)
     slides.append(s)
 
-    s = Slide("On chain", "The deployment, inside a scoped EVM window", 12)
+    s = Slide("On chain", "The deployment, inside a scoped EVM window", 10)
     s.say(f"contract  {contract}", TEXT, "mono")
     s.say(f"deploy tx {dep.get('tx', '—')}", TEXT, "mono")
     s.say(f"block     {dep.get('block', '—')}", TEXT, "mono")
     s.say("", style="gap")
-    window_note = "1 transaction, 1.5 QOR of value+fees, 400 blocks"
-    ops = ROOT / "demo" / "operations.jsonl"
-    if ops.exists():
-        for line in ops.read_text().splitlines():
-            if not line.strip():
-                continue
-            o = json.loads(line)
-            if o.get("kind") == "window-open" and "deployment" in o.get("note", ""):
-                window_note = o["note"].split(":")[-1].strip()
-                break
-    s.say(f"MsgOpenEVMWindow: {window_note}.", TEXT, "small")
+    s.say("MsgOpenEVMWindow: 1 transaction, 1.5 QOR of value+fees, 400 blocks.", TEXT, "small")
     s.say("The classical owner key alone can never open that window.", MUTED, "small")
     s.say("", style="gap")
     s.say("explore.qore.network (switch to Testnet) shows every hash in this video.", ACCENT, "small")
     slides.append(s)
 
-    s = Slide("Agent run", f"Paid {len(paid)} invoices, refused {len(refused)}", 15)
-    shown = [e for e in entries if "gas" not in (e.get("chain_reason") or "").lower()][:8]
+    s = Slide("Agent run", f"Paid {len(paid)} invoices, refused {len(refused)}", 12)
+    shown = [e for e in entries if "gas" not in (e.get("chain_reason") or "").lower()][:7]
     for e in shown:
         ok = e.get("chain_success")
         mark = "PAID   " if ok else "REFUSED"
         color = OK if ok else BAD
         inv = (e.get("invoice") or "").ljust(9)
-        amt = f"{e.get('amount_uqor', 0) / 1_000_000:.2f} QOR"
-        s.say(f"{mark} {inv} {amt:>10}  {e.get('vendor_label','')}", color, "mono")
+        unit = "fUSD" if e.get("kind") == "token_payment" else "QOR"
+        amt = f"{e.get('amount_uqor', 0) / 1_000_000:,.2f} {unit}"
+        s.say(f"{mark} {inv} {amt:>13}  {e.get('vendor_label','')}", color, "mono")
     s.say("", style="gap")
-    s.say("The refusals are the product: they come from the chain and the contract,", MUTED, "small")
-    s.say("not from the agent's own checks.", MUTED, "small")
+    s.say("The refusals are the product: they come from the chain and the contract.", MUTED, "small")
     slides.append(s)
 
-    s = Slide("Refusals", "What the chain said no to, in its own words", 13)
-    for e in refused[:4]:
+    s = Slide("Refusals", "What the chain said no to, in its own words", 11)
+    for e in refused[:3]:
         s.say(f"{e.get('invoice')}  {e.get('amount_uqor',0)/1_000_000:.2f} QOR", BAD, "h2")
-        reason = (e.get("chain_reason") or "").replace("\\n", " ")[:150]
+        reason = (e.get("chain_reason") or "").replace("\\n", " ")[:130]
         s.say(reason or "(no reason returned)", TEXT, "mono")
         s.say("", style="gap")
-    s.say("One more refusal never reached the chain: an invoice whose amount was", MUTED, "small")
-    s.say("changed after signing fails the vendor's ed25519 signature.", MUTED, "small")
+    s.say("A tampered invoice never reaches the chain: its vendor signature fails.", MUTED, "small")
     slides.append(s)
 
-    s = Slide("Post-quantum admin", "An owner signature the chain verifies itself", 13)
+    s = Slide("Post-quantum admin", "An owner signature the chain verifies itself", 10)
     s.say("ML-DSA-87 (FIPS 204): 2,592-byte public key, 4,627-byte signature.", TEXT)
     s.say("", style="gap")
     s.say("pqcKeyStatus(owner)  → registered, algorithm 1, key proven", TEXT, "mono")
@@ -204,42 +204,80 @@ def build_slides() -> list[Slide]:
     s.say("", style="gap")
     s.say("message = domain ‖ chainid ‖ contract ‖ action ‖ payload ‖ nonce", TEXT, "mono")
     s.say("", style="gap")
-    s.say("A leaked classical key cannot add a payee, raise a cap, or approve a", TEXT, "small")
-    s.say("payment above a cap. That is the whole answer to Q-Day.", OK, "small")
+    s.say("A leaked classical key cannot add a payee or raise a cap.", OK, "small")
     slides.append(s)
 
-    s = Slide("Exception path", "One payment the human approves, once", 12)
-    s.say("Invoice above the vendor cap  →  refused by the contract.", TEXT)
-    s.say("Owner signs (vendorId, amount, memo, nonce) with ML-DSA-87.", TEXT)
-    s.say("The agent submits it; the chain verifies the signature in the contract.", TEXT)
+    s = Slide("Rail 2 — QoreSeal", "The invoice archive, encrypted to the owner", 9)
+    s.say("Each signed invoice is sealed with ML-KEM-1024 (hybrid X25519 + ML-KEM).", TEXT, "small")
+    s.say(f"key registered on chain in tx {features.get('kem',{}).get('tx','—')[:24]}…", TEXT, "mono")
+    s.say("(1,568 bytes, read back identical)", MUTED, "small")
     s.say("", style="gap")
-    s.say("The same signature cannot pay a different amount, or be used twice:", TEXT, "small")
-    s.say("the message binds the nonce and the policy consumes it.", MUTED, "small")
+    s.say(f"archive digest  qg:seal-archive:v1:{seal.get('archive_digest','')[:24]}…", PURPLE, "mono")
+    s.say(f"anchor tx       {seal.get('tx','—')[:24]}…", TEXT, "mono")
     s.say("", style="gap")
-    s.say("And the treasury-wide daily cap still applies to approved payments.", OK, "small")
+    s.say("Only the 32-byte digest goes on chain; only the owner's key opens it.", OK, "small")
     slides.append(s)
 
-    s = Slide("Revocation", "One transaction ends it", 10)
-    s.say("MsgRevokeAuthenticator, signed by the owner with both keys.", TEXT)
-    s.say("The next agent payment is refused by the chain:", TEXT)
-    s.say("linked key is unbound or revoked", BAD, "mono")
+    s = Slide("Rail 3 — QoreSign", "One payment the human approves, once", 9)
+    s.say(f"INV {approval.get('invoice','—')} asks for {approval.get('amount_uqor',0):,} uqor", TEXT, "small")
+    s.say(f"above the vendor's {approval.get('vendor_per_tx_cap_uqor',0):,} uqor per-tx cap.", TEXT, "small")
     s.say("", style="gap")
-    s.say("Worst case while the key was live: one day's cap, to registered vendors only.", OK, "small")
+    s.say("The owner signs a Sign-In-With-QoreChain message — hybrid, with ML-DSA-87.", TEXT, "small")
+    s.say("The agent verifies it against the on-chain key, then pays.", TEXT, "small")
+    s.say(f"settled in tx {approval.get('tx','—')[:24]}… (approval nonce {approval.get('approval_nonce','—')})", OK, "mono")
+    s.say("", style="gap")
+    s.say("A doubled amount, a replayed nonce, another invoice: all refused.", MUTED, "small")
     slides.append(s)
 
-    s = Slide("Repo", "Reproducible from an empty directory", 11)
-    s.say("contracts/    23 Foundry tests, encoding parity with the off-chain encoder", TEXT, "mono")
-    s.say("agent/        ed25519 agent, signed intents, MsgExecuteEVM relaying", TEXT, "mono")
-    s.say("demo/         mandate, signed invoices, journal (evidence)", TEXT, "mono")
-    s.say("scripts/      keys, invoice signing, local integration, dashboard", TEXT, "mono")
+    s = Slide("Rail 4 — fUSD", "A stablecoin invoice under the same rule", 8)
+    s.say(f"{token.get('amount','—')} fUSD to the vendor's account.", TEXT)
+    s.say("Sent on the native lane by the agent itself: MsgExecuteCosmos.", TEXT, "small")
+    s.say(f"tx {token.get('tx','—')[:24]}…", TEXT, "mono")
     s.say("", style="gap")
-    s.say("forge test                    → 23 passing", OK, "mono")
-    s.say("scripts/local_integration.sh  → 12 checks against anvil", OK, "mono")
-    s.say("", style="gap")
-    s.say("AI_USAGE.md documents the AI workflow and the human decisions.", MUTED, "small")
+    s.say("The same chain rule lists the token denom, so the token has a budget too.", OK, "small")
+    s.say(f"(the treasury got its fUSD from pool {features.get('swap',{}).get('pool_id','—')})", MUTED, "small")
     slides.append(s)
 
-    s = Slide("QoreGuard", "Build post-quantum like the key will leak.", 8)
+    s = Slide("Attack lab", "A judge presses, the chain refuses", 11)
+    s.say("dorithesky.github.io/qoreguard/web/lab.html", ACCENT, "mono")
+    s.say("", style="gap")
+    s.say("No wallet, no key, no install: the page holds no key at all.", TEXT, "small")
+    for line in (
+        "over-cap payment        → PerVendorTxCapExceeded",
+        "unregistered vendor     → UnknownVendor",
+        "forged ML-DSA signature → BadPqcSignature",
+        "memo ≠ value            → ValueMismatch",
+        "stale approval nonce    → StaleApprovalNonce",
+        "any other sender        → NotOwnerAccount",
+        "one-byte signature      → BadPqcSignature",
+    ):
+        s.say(line, BAD, "mono")
+    slides.append(s)
+
+    s = Slide("QoreX console", "The owner signs in a wallet, not in a script", 9)
+    s.say("window.qorex.native.signArbitrary(chainId, address, data)", TEXT, "mono")
+    s.say("verifyMessageWithChain(...) → the key the chain holds", TEXT, "mono")
+    s.say("", style="gap")
+    s.say("The page reads the ML-DSA-87 key from pqcKeyStatus (0x…0a02) — the", MUTED, "small")
+    s.say("precompile the contract itself calls — and verifies the hybrid signature.", MUTED, "small")
+    s.say("", style="gap")
+    s.say("One changed byte is refused, in the browser, with no key present.", OK, "small")
+    slides.append(s)
+
+    s = Slide("Proof", "What a reviewer can re-run without trusting us", 11)
+    s.say(f"forge test        {tests.get('total','—')} tests, {tests.get('invariants','—')} invariants", OK, "mono")
+    s.say("                  " + ", ".join(
+        f"{k} {v[0]}/{v[1]}" for k, v in coverage.items()
+    ), OK, "mono")
+    s.say(f"scripts/mutate.py {mutation.get('killed','—')}/{mutation.get('total','—')} mutants killed", OK, "mono")
+    s.say("python verify.py  40 checks, read-only, no keys", OK, "mono")
+    s.say("", style="gap")
+    s.say(f"QoreScan CBOM     {algorithms} algorithms, CycloneDX 1.6 + DORA/NIS2", TEXT, "mono")
+    s.say("", style="gap")
+    s.say("Every number above is produced by the command beside it.", MUTED, "small")
+    slides.append(s)
+
+    s = Slide("QoreGuard", "Build post-quantum like the key will leak.", 7)
     s.say("Because one day, it will.", ACCENT, "big")
     s.say("", style="gap")
     s.say("QoreChain testnet · qorechain-diana · EVM chain 9800", MUTED)

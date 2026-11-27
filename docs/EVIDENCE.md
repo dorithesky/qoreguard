@@ -123,5 +123,5 @@ carries `abstractaccount_execution_failed` with the contract's reason — that i
 the refusal, not a failed transaction.
 
 Everything in this file is re-checked by `python verify.py` (read-only, no keys,
-23 checks): bytecode against the artifact, the policy, the spend ledger, every
+40 checks): bytecode against the artifact, the policy, the spend ledger, every
 payment and refusal, the approval, the archive digest and the fUSD balance.

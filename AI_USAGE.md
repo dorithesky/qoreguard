@@ -56,11 +56,11 @@ holding the keys that matter.
 ## 3. What the AI produced
 
 - `contracts/src/QoreGuardTreasury.sol` (~380 lines) and its mocks.
-- `contracts/test/*.sol`: 23 tests, all passing.
+- `contracts/test/*.sol`: 51 tests, 13 invariants `scripts/record_tests.py` records, 100 % coverage, 19/19 mutants killed (the AI wrote the mutants; the suite had to kill them).
 - `agent/qoreguard/`: configuration, chain wrapper, EVM client, ABI encoder,
   planner, agent, CLI, plus the three rails — `sealing.py` (QoreSeal),
   `approvals.py` (QoreSign/SIWQ) and `mcpread.py` (QoreChain MCP) (~1,700 lines).
-- `verify.py`: 23 read-only checks a judge can run without a key.
+- `verify.py`: 40 read-only checks a judge can run without a key, including the two browser surfaces and the CBOM.
 - `scripts/`: key bootstrap, invoice signing, demo runners, dashboard, evidence.
 - All documentation, the threat model and the submission text.
 

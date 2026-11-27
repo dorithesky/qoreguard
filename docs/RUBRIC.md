@@ -16,9 +16,10 @@ page points each one at something a reviewer can check in under a minute.
 | The agent pays a stablecoin invoice itself | `MsgExecuteCosmos` of 500 fUSD, tx `3DAD3DF9…`; the vendor's account holds it |
 | Invoices are archived encrypted | 10 envelopes sealed to the owner's ML-KEM-1024 key, archive digest on chain (`33B776A0…`) |
 
-Reproduce: **`python verify.py`** (23 read-only checks against the live chain, no
-keys needed), `scripts/local_integration.sh` (12 checks, no network) and
-`python -m qoreguard.cli run`.
+Reproduce: **`python verify.py`** (40 read-only checks against the live chain, no
+keys needed), `node scripts/test_web.mjs` (the lab page's own module: seven
+refusals and a signature verification), `scripts/local_integration.sh` (12
+checks, no network) and `python -m qoreguard.cli run`.
 
 ## 2. QoreChain technology used, verified in repo and on chain — 25%
 
@@ -36,8 +37,14 @@ keys needed), `scripts/local_integration.sh` (12 checks, no network) and
 | QoreChain MCP | `agent/qoreguard/mcpread.py` reads treasury views and accounts through `qorechain-mcp` over stdio |
 | Sign In With QoreChain | `agent/qoreguard/approvals.py`, verified with `verify_siwq(require_pq=True)` against the on-chain key |
 
+| QoreScan | `docs/cbom.json` (CycloneDX 1.6), `docs/DORA-REPORT.md`, `docs/NIS2-REPORT.md`; `verify.py` re-reads every citation |
+| QoreX | `web/qorex.html` — `window.qorex.native.signArbitrary` + `verifyMessageWithChain` over the chain's own key |
+| Test depth | 51 Foundry tests, 13 invariants over an 8-action handler, 100 % of lines/statements/branches/functions, 19/19 mutants (`docs/verification.json`) |
+| CI | `.github/workflows/daily-verify.yml`: daily `forge test` + `verify.py`, no secret |
+
 Kits: `qorechain-sdk`, `qorechain-qoreseal`, `qorechain-qoresign`,
-`qorechain-mcp`, plus Foundry for the contract. Ship Weeks: 4/4 badges.
+`qorechain-mcp`, `qorescan`, `@qorechain/qoresign` (web), plus Foundry for the
+contract. Ship Weeks: 4/4 badges.
 
 ## 3. Post-quantum correctness and security — 20%
 
@@ -65,7 +72,7 @@ or touch another protocol.
   builder traps found the hard way, honest limitations.
 - `web/index.html`: a dashboard generated from the chain (vendors, caps, spend
   bars, ledger, refusals, PQ-verified admin events). `python scripts/render_dashboard.py`.
-- `demo/qoreguard-demo.mp4`: 2:08 captioned walkthrough, every number copied from
+- `demo/qoreguard-demo.mp4`: 2:16 captioned walkthrough, every number copied from
   the deployment record and the journal.
 - `docs/EVIDENCE.md`: generated from the chain, one row per transaction.
 - `docs/JUDGES.md`: the five-minute tour — run `verify.py`, read what is on
