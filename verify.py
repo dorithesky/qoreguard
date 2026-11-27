@@ -396,7 +396,9 @@ def main() -> int:
         index = json.loads((ROOT / "demo" / "sealed" / "index.json").read_text())
         expect(index, "no sealed invoices")
         for rec in index:
-            blob = Path(rec["envelope"]).read_bytes()
+            # index.json was written with the building machine's absolute path;
+            # the envelope itself is committed next to it, so resolve by name.
+            blob = (ROOT / "demo" / "sealed" / Path(rec["envelope"]).name).read_bytes()
             expect(hashlib.sha256(blob).hexdigest() == rec["envelope_sha256"], f"{rec['invoice_id']}: envelope changed")
             expect(len(blob) == rec["envelope_len"], f"{rec['invoice_id']}: length changed")
         archive = hashlib.sha256("|".join(sorted(x["envelope_sha256"] for x in index)).encode()).hexdigest()
