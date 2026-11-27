@@ -111,7 +111,7 @@
       <a href="./qorex.html">QoreX console</a> — sign with your own wallet and verify ·
       <a href="../docs/DORA-REPORT.md">DORA report</a> ·
       <a href="../docs/cbom.json">CBOM</a> ·
-      <span class="mono">python verify.py</span> — 39 read-only checks from a clean machine
+      <span class="mono">python verify.py</span> — 40 read-only checks from a clean machine
     </p>
   </div>
 </main>
@@ -284,8 +284,9 @@ async function runExperiment(exp, button, out) {
     const decoded = decodeRevert(hex);
     out.replaceChildren();
     const head = el("div", "line");
+    const expected = call.expect;
     head.append(el("span", "pill bad", decoded.name),
-      document.createTextNode(`  expected ${exp.expect}${decoded.name === exp.expect ? " — matched" : " — DIFFERENT"}`));
+      document.createTextNode(`  expected ${expected}${decoded.name === expected ? " — matched" : " — DIFFERENT"}`));
     out.append(head);
     if (decoded.args.length) {
       const args = decoded.args.map((a, i) => {
