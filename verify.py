@@ -321,11 +321,26 @@ def main() -> int:
 
     def approval_verifies() -> str:
         rec = p1["approval"]
+        # The approval was valid for 15 minutes, so it is judged at the instant
+        # it was signed; the expiry is then exercised on the same signature.
+        issued_ms = _siwq_issued_ms(rec["siwq_message"])
         verified = approvals.verify(
-            approval_request(rec), rec["siwq_signature"], chain_pq_public_key=chain_owner_pub(), chain_id=chain_id
+            approval_request(rec),
+            rec["siwq_signature"],
+            chain_pq_public_key=chain_owner_pub(),
+            chain_id=chain_id,
+            at_ms=issued_ms + 1_000,
         )
         expect(verified["address"] == owner, f"signer {verified['address']}")
-        return "the SIWQ approval verifies against the on-chain ML-DSA-87 key"
+        expired_now = False
+        try:
+            approvals.verify(
+                approval_request(rec), rec["siwq_signature"], chain_pq_public_key=chain_owner_pub(), chain_id=chain_id
+            )
+        except Exception as exc:
+            expired_now = "SIWQ_EXPIRED" in str(exc)
+        expect(expired_now, "the 15-minute approval is still accepted today — expiry is not enforced")
+        return "verifies against the on-chain ML-DSA-87 key at its issue time, and is refused now that it expired"
 
     r.check("the owner's Sign-In-With-QoreChain approval verifies", approval_verifies)
 
@@ -482,6 +497,17 @@ def _intent_memos(intent: dict) -> set[str]:
     relayer memo of the first run (`qoreguard:…`). Both are the same digest."""
     digest = hashlib.sha256(json.dumps(intent, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     return {f"qg:v1:{digest[:40]}", f"qoreguard:{digest[:16]}"}
+
+
+def _siwq_issued_ms(message: str) -> int:
+    import datetime as _dt
+
+    for line in message.splitlines():
+        if line.startswith("Issued At:"):
+            stamp = line.split(":", 1)[1].strip().rstrip("Z")
+            dt = _dt.datetime.fromisoformat(stamp).replace(tzinfo=_dt.timezone.utc)
+            return int(dt.timestamp() * 1000)
+    raise AssertionError("the SIWQ message has no Issued At line")
 
 
 def _siwq_nonce(message: str) -> str:

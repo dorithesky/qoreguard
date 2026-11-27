@@ -135,8 +135,15 @@ def verify(
     *,
     chain_pq_public_key: bytes,
     chain_id: str,
+    at_ms: int | None = None,
 ) -> dict:
     """Verify an approval against the owner's on-chain ML-DSA-87 key.
+
+    `at_ms` is the moment to judge the message's validity at, in Unix
+    milliseconds; without it the system clock is used, so an expired approval is
+    refused. A re-verification of a past approval passes the instant it was
+    signed — the expiry is then still enforced relative to that instant, and
+    `verify()` without `at_ms` shows it is no longer usable today.
 
     Raises `qoresign.QoreSignError` when the signature is not the owner's, is
     classical-only, is for another domain or nonce, or has expired.
@@ -150,6 +157,7 @@ def verify(
         pq_public_key=chain_pq_public_key,
         chain_id=chain_id,
         require_pq=True,
+        now_ms=at_ms,
     )
     expected = statement(
         request.invoice_id, request.vendor_id, request.vendor_label, request.amount, request.denom, request.approval_nonce
