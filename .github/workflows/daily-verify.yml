@@ -44,7 +44,7 @@ jobs:
         with:
           version: stable
 
-      - name: Install forge-std (not vendored: lib/ is git-ignored)
+      - name: Install forge-std, since lib/ is git-ignored
         run: forge install foundry-rs/forge-std --no-git || true
 
       - name: forge test (51 tests, 13 invariants)
