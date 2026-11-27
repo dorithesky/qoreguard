@@ -61,6 +61,17 @@ holding the keys that matter.
   planner, agent, CLI, plus the three rails — `sealing.py` (QoreSeal),
   `approvals.py` (QoreSign/SIWQ) and `mcpread.py` (QoreChain MCP) (~1,700 lines).
 - `verify.py`: 40 read-only checks a judge can run without a key, including the two browser surfaces and the CBOM.
+- The QoreX console was first written against `window.qorex.native.signArbitrary`
+  on the assumption that a wallet can sign arbitrary bytes. The vendor's own
+  `@qorechain/qorex-types` README says otherwise for the current build
+  ("`signArbitrary` is refused for now", typed `Promise<never>`), so the page was
+  rewritten to detect the wallet, read the account, and report the wallet's
+  refusal verbatim instead of claiming a signing path that does not exist. The
+  kit's types are what caught it; that is the AI workflow's main check on itself.
+- Mutation testing found no gap, but it found a stale build artifact: the last
+  mutant's bytecode stayed in `contracts/out` and `verify.py` flagged the
+  deployed code as different from the artifact. `scripts/mutate.py` now
+  recompiles the restored source before it exits.
 - `scripts/`: key bootstrap, invoice signing, demo runners, dashboard, evidence.
 - All documentation, the threat model and the submission text.
 

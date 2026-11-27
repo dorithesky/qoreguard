@@ -33,8 +33,8 @@ planner. QoreGuard puts those limits where the agent cannot reach them.
 **Gate 1 — the account's own rules.** The agent is a linked ed25519 key on the
 owner's QoreChain account (`MsgRegisterAuthenticator`) with `send` and `evm`
 permissions only, a spending rule of 0.6 QOR per call and 1.5 QOR per day in
-`uqor`, and an `allowed_evm_calls` list naming exactly two functions on one
-contract. Even with the agent's key, an attacker can pay registered vendors
+`uqor` and fUSD, and an `allowed_evm_calls` list naming exactly two functions on
+one contract. Even with the agent's key, an attacker can pay registered vendors
 within one day's cap and nothing else: no transfers, no other contracts, no
 deployment. The owner's ML-DSA-87 key never leaves the owner's side; the agent's
 relayer submits and pays the fee.
@@ -60,31 +60,46 @@ signature before it builds anything, and the payment's on-chain memo is a
 commitment to that exact signed invoice. The demo includes a tampered invoice
 whose amount changed after signing; it is refused before a transaction exists.
 
-**What the demo shows on testnet** (every hash in `docs/EVIDENCE.md`): the
-owner's ML-DSA-87 key registered with a proof of possession in a classical
-bootstrap transaction; a deployment EVM window of one transaction, then a
-target-scoped admin window that admits only the treasury contract; two vendors
-registered through PQ-signed calls that the contract verified with
-`pqcVerify`; the agent linked with `send`+`evm`, 0.6 QOR/tx, 1.5 QOR/day and two
-allowed selectors; four payments settled; five policy refusals — two vendor-cap
-refusals, the chain's own per-call limit (`600000uqor exceeded (attempted
-700000)`), a vendor daily-cap refusal, and a tampered invoice stopped before the
-chain; one owner-approved exception that settled; one PQ-signed cap change; one
-`MsgRevokeAuthenticator` after which the chain answers `linked key is unbound or
-revoked`; and a Q-Day check where the owner's classical key submits a
-`setTreasuryCap` with a forged PQ signature — mined, reverted, policy unchanged.
+**Three more rails on the same account.** QoreSeal: every signed invoice is
+encrypted to the owner's ML-KEM-1024 key (`msg.pqc.register_kem_key`, 1,568
+bytes read back identical), and only the archive digest is public
+(`qg:seal-archive:v1:19527ac1…`). QoreSign: an over-cap invoice (250,000 uqor
+against a 200,000 uqor cap) is approved by the owner as a Sign-In-With-QoreChain
+message, verified with `verify_siwq(require_pq=True)` against the ML-DSA-87 key
+registered on chain, then settled through `payWithApproval`; a doubled amount or
+a replayed nonce is refused. fUSD: the agent pays a 500 fUSD invoice itself on
+the native lane under the same spending rule, which now lists the token denom,
+and the treasury obtained those tokens from a swap in pool 2.
 
-**What a reviewer can press.** `web/lab.html` runs seven refusals in the browser
-as `eth_call`s — the page holds no key, so it can only ask and be refused — and
-verifies the owner's recorded ML-DSA-87 signature against the key the chain
-holds. `web/qorex.html` is the wallet path: `@qorechain/qorex-types` detects
-QoreX and reads the account and its on-chain key status with `native.getKey`,
-`verifyMessageWithChain` verifies a real hybrid signature in the page, and the
-wallet's current refusal of `signArbitrary` is reported verbatim. The contract
-carries 51 Foundry tests, 13 invariants over an 8-action handler, 100 % line /
-statement / branch / function coverage and 19/19 killed mutants; a QoreScan CBOM
-with DORA and NIS2 mappings sits in `docs/`; and a daily GitHub Actions run
-re-executes `forge test` and `python verify.py` with no secret configured.
+**Proof, not adjectives.** 51 Foundry tests, 13 invariants over an 8-action
+handler, 100% of lines, statements, branches and functions, and 19/19 mutants
+killed (`python scripts/mutate.py`); a QoreScan CBOM (CycloneDX 1.6) with DORA
+and NIS2 mappings in `docs/`; a daily GitHub Actions run that re-executes
+`forge test` and `python verify.py` on a machine we do not control, with no
+secret configured.
+
+**A judge can press it.** `web/lab.html` runs seven refusals in the browser as
+`eth_call`s — over-cap, unknown vendor, forged ML-DSA-87 signature, memo ≠ value,
+stale approval nonce, a non-owner sender, a one-byte signature — and verifies the
+owner's recorded hybrid signature against the key the chain holds, refusing a
+changed byte. The page holds no key, so it can only ask. `web/qorex.html` detects
+QoreX with `@qorechain/qorex-types`, reads the account and its on-chain key
+status with `native.getKey`, and reports the wallet's own refusal of
+`signArbitrary` verbatim rather than hiding it; the verification half is live.
+
+**What the demo shows on testnet** (every hash in `docs/EVIDENCE.md`): the
+owner's ML-DSA-87 key registered with a proof of possession; a deployment EVM
+window of one transaction, then a target-scoped admin window; two vendors
+registered through PQ-signed calls the contract verified with `pqcVerify`; the
+agent linked with `send`+`evm`, 0.6 QOR/tx, 1.5 QOR/day and two allowed
+selectors; five QOR payments and one fUSD invoice settled; five policy refusals
+(two vendor-cap refusals, the chain's own per-call limit, a vendor daily-cap
+refusal, a tampered invoice stopped before the chain); one owner-approved
+exception that settled; a PQ-signed cap change; a revocation after which the
+chain answers `linked key is unbound or revoked`; and a Q-Day check where the
+owner's classical key submits a `setTreasuryCap` with a forged PQ signature —
+mined, reverted, policy unchanged. `python verify.py` re-checks 40 of these
+facts read-only with no keys, and `docs/JUDGES.md` is the five-minute tour.
 
 **Why this is AI-native.** The build itself used an AI workflow (documented in
 `AI_USAGE.md`), and the design keeps AI out of the trust path: the agent may be
