@@ -1,0 +1,75 @@
+name: daily-verify
+
+# Every day, from a machine we do not control:
+#   1. the Foundry suites (51 tests, 13 invariants) against the contract source,
+#   2. the read-only re-check of the live testnet deployment (verify.py, 40 checks).
+#
+# No secret is configured for this workflow and none is needed. verify.py holds
+# no key: it reads public endpoints, reproduces the refusals with eth_call and
+# compares recorded artifacts. Nothing here can sign, spend or deploy.
+
+on:
+  schedule:
+    - cron: "17 22 * * *" # 07:17 KST, every day
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "contracts/**"
+      - "verify.py"
+      - "demo/**"
+      - "requirements.txt"
+      - ".github/workflows/daily-verify.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-verify
+  cancel-in-progress: false
+
+jobs:
+  foundry:
+    name: Foundry — policy, PQ gate, invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Install forge-std (not vendored: lib/ is git-ignored)
+        run: forge install foundry-rs/forge-std --no-git || true
+
+      - name: forge test (51 tests, 13 invariants)
+        run: forge test -vv
+
+      - name: Coverage (lines, statements, branches, functions)
+        run: forge coverage --report summary --no-match-coverage "test|mocks|lib"
+
+  live:
+    name: Live — verify.py against qorechain-diana
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install the kits the project integrates
+        run: pip install -r requirements.txt
+
+      - name: Re-check the deployment (read-only, no keys)
+        run: python verify.py
+
+      - name: Re-check the browser surfaces' module (no key, eth_call only)
+        run: node scripts/test_web.mjs
