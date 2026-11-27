@@ -4,7 +4,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-export PATH="$PATH:/workspace/.foundry/bin"
+# Toolchain: foundry and a python with the requirements installed. Override with
+# FORGE_BIN / PYTHON if they live somewhere else.
+export PATH="$PATH:${FOUNDRY_BIN:-$HOME/.foundry/bin}"
+PYTHON="${PYTHON:-python3}"
+command -v forge >/dev/null || { echo "forge not found: run 'foundryup' or set FOUNDRY_BIN"; exit 1; }
 
 # 1. build artifacts
 (cd contracts && forge build --quiet)
@@ -20,11 +24,11 @@ for _ in $(seq 1 40); do
 done
 
 # 3. run the integration script
-PYTHONPATH=agent /workspace/.venv-qore/bin/python scripts/local_integration.py
+PYTHONPATH=agent "$PYTHON" scripts/local_integration.py
 
 # 4. render the dashboard from the local deployment (a preview, not evidence)
 QOREGUARD_DEPLOYMENT=.keys/deployment.local.json \
 QORE_EVM_RPC=http://127.0.0.1:8545 \
 QORE_EVM_CHAIN_ID=9800 \
 QOREGUARD_OUT=web/preview.html \
-PYTHONPATH=agent /workspace/.venv-qore/bin/python scripts/render_dashboard.py
+PYTHONPATH=agent "$PYTHON" scripts/render_dashboard.py

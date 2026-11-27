@@ -23,6 +23,10 @@ class Vendor:
     daily_cap_uqor: int
     invoice_pubkey: str = ""  # ed25519 key the vendor signs invoices with
     note: str = ""
+    #: The vendor's own QoreChain account, for invoices paid in a token denom
+    #: (the treasury contract only forwards native QOR, so token invoices take
+    #: the native lane and need a bech32 recipient).
+    token_account: str = ""
 
 
 @dataclass
@@ -35,6 +39,9 @@ class Invoice:
     signer_pubkey: str = ""
     signature: str = ""
     tamper_note: str = ""
+    #: Settlement denom. Empty means uqor (the treasury contract path);
+    #: an ``erc20:0x…`` denom means a test-token invoice paid on the native lane.
+    denom: str = ""
 
 
 @dataclass
@@ -85,9 +92,13 @@ class PlanItem:
 
 def invoice_message(inv: Invoice) -> bytes:
     """The exact bytes a vendor signs. Any change to the invoice changes it."""
-    return "|".join(
-        ["QoreGuard.invoice.v1", inv.id, inv.vendor, str(inv.amount_uqor), inv.memo, inv.due or ""]
-    ).encode()
+    parts = ["QoreGuard.invoice.v1", inv.id, inv.vendor, str(inv.amount_uqor), inv.memo, inv.due or ""]
+    # A token invoice signs its denom too, so the denomination cannot be
+    # swapped after signing. QOR invoices keep the original five fields, which
+    # is what their existing signatures cover.
+    if inv.denom:
+        parts.append(inv.denom)
+    return "|".join(parts).encode()
 
 
 def verify_invoice(inv: Invoice, vendor: Vendor) -> bool:

@@ -172,6 +172,76 @@ def main() -> int:
         add("_no journal yet_")
     add("")
 
+    # ------------------------------------------------------------------ #
+    # the second run: the three other rails
+    # ------------------------------------------------------------------ #
+    p1_path = ROOT / "demo" / "p1.json"
+    feat_path = ROOT / "demo" / "onchain_features.json"
+    if p1_path.exists() or feat_path.exists():
+        p1 = json.loads(p1_path.read_text()) if p1_path.exists() else {}
+        feat = json.loads(feat_path.read_text()) if feat_path.exists() else {}
+        add("## The second run: sealed archive, owner approval, token settlement\n")
+        add("| Rail | What the chain holds | Value | tx |")
+        add("| --- | --- | --- | --- |")
+        if feat.get("kem"):
+            k = feat["kem"]
+            add(
+                f"| QoreSeal key | ML-KEM-1024 key registered for the owner (`msg.pqc.register_kem_key`), "
+                f"read back identical | {k['key_len']} B, algorithm {k['chain_algorithm_name']} "
+                f"(id {k['chain_algorithm_id']}), height {k['registered_height']} | "
+                f"[`{k['tx'][:16]}…`]({EXPLORER}{k['tx']}) |"
+            )
+        if feat.get("swap"):
+            sw = feat["swap"]
+            add(
+                f"| AMM swap | native pool {sw['pool_id']} (fUSD/QOR), " + f"{sw['amount_in_uqor']} uqor in, minOut 1"
+                + f" | {sw['token_out_received']} fUSD out | [`{sw['tx'][:16]}…`]({EXPLORER}{sw['tx']}) |"
+            )
+        if p1.get("seal"):
+            sl = p1["seal"]
+            add(
+                f"| Sealed archive | {sl['invoices_sealed']} signed invoices encrypted to the owner's ML-KEM-1024 key; "
+                f"only the archive digest is public | `{sl['memo']}` (memo read back: {sl['memo_matches']}) | "
+                f"[`{sl['tx'][:16]}…`]({EXPLORER}{sl['tx']}) |"
+            )
+        if p1.get("link"):
+            lk = p1["link"]
+            add(
+                f"| Agent re-linked | permissions {lk['permissions']}, {lk['per_tx_limit_uqor']} uqor/tx, "
+                f"{lk['daily_limit_uqor']} uqor/day, denoms {lk['allowed_denoms']} | nonce {lk['nonce']} | "
+                f"[`{lk['tx'][:16]}…`]({EXPLORER}{lk['tx']}) |"
+            )
+        if p1.get("approval"):
+            ap = p1["approval"]
+            add(
+                f"| QoreSign approval | SIWQ message verified against the on-chain ML-DSA-87 key, then "
+                f"`payWithApproval` settled {ap['amount_uqor']} uqor above the {ap['vendor_per_tx_cap_uqor']} uqor cap "
+                f"(approval nonce {ap['approval_nonce']}) | "
+                f"negatives: {ap['negatives']} | [`{ap['tx'][:16]}…`]({EXPLORER}{ap['tx']}) |"
+            )
+        if p1.get("token"):
+            tk = p1["token"]
+            add(
+                f"| fUSD settlement | the agent paid a {tk['amount']} fUSD invoice on the native lane "
+                f"(`MsgExecuteCosmos`), vendor `{tk['to']}` | vendor fUSD after: {tk['vendor_fusd_after']} | "
+                f"[`{tk['tx'][:16]}…`]({EXPLORER}{tk['tx']}) |"
+            )
+        add("")
+
+        if p1.get("approval"):
+            add("### The owner's approval, as the agent verified it\n")
+            add("```")
+            for line in p1["approval"]["siwq_message"].splitlines():
+                add(line)
+            add("```")
+            add("")
+            add(
+                "Signed hybrid (secp256k1 + ML-DSA-87) and verified with "
+                "`qoresign.verify_siwq(..., require_pq=True)` against the ML-DSA-87 key "
+                "registered for the owner account on chain. A classical-only signature is "
+                "refused with `PQ_LAYER_MISSING`.\n"
+            )
+
     add("## Verifying a payment yourself\n")
     add("```bash")
     add("    curl -s https://api-testnet.qore.host/cosmos/tx/v1beta1/txs/<hash> | jq .tx_response.code")
@@ -182,6 +252,10 @@ def main() -> int:
     add("over `evmAuthSignBytesV2`. A refused payment keeps transaction `code: 0` and")
     add("carries `abstractaccount_execution_failed` with the contract's reason — that is")
     add("the refusal, not a failed transaction.")
+    add("")
+    add("Everything in this file is re-checked by `python verify.py` (read-only, no keys,")
+    add("23 checks): bytecode against the artifact, the policy, the spend ledger, every")
+    add("payment and refusal, the approval, the archive digest and the fUSD balance.")
 
     OUT.write_text("\n".join(lines) + "\n")
     print(f"wrote {OUT}")

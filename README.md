@@ -11,7 +11,13 @@ holds the owner's classical (ECDSA) key — the key a quantum computer would
 recover — still cannot add a payee or raise a cap.
 
 That is the Q-Day story told in the one category where it matters most: an agent
-with a wallet.
+with a wallet. Around that core sit three more rails, all on the same testnet
+account: invoices archived **encrypted to the owner's ML-KEM-1024 key**
+(QoreSeal), over-cap payments approved by the owner as a **Sign-In-With-QoreChain
+signature** verified against the on-chain ML-DSA-87 key (QoreSign), and a
+**stablecoin invoice settled in fUSD** by the same agent under the same spending
+rule (test tokens). `python verify.py` re-checks all of it read-only: **23 checks,
+no keys, no writes**.
 
 ```
                        ┌──────────────────────────────────────────────┐
@@ -48,9 +54,12 @@ with a wallet.
 | Owner (eth-native) | `qor1qj002t0yrrwud08geqww0r5f56tgu09rqjxqcd` / `0x049Ef52DE418DDC6Bce8c81ce78E89A6968e3Ca3` |
 | Relayer (native) | `qor1zcsp7xup7y08czmc9z563x0qk3q6sm5827ftf8` |
 | Vendors | `0x305e5935929844bECA43aB6376226a7916A2d129`, `0xdB4a4925451FbCa4183Ea435ef29E4EF24fCF07D` |
-| Payments settled | 4 (0.15 + 0.25 + 0.10 + 0.50 QOR), 1.0 QOR of a 1.5 QOR daily cap |
+| Payments settled | 5 QOR payments (1.25 QOR all-time) **+ 1 fUSD invoice (500 fUSD)** |
 | Policy refusals on chain | 5 (vendor per-tx ×2, chain per-tx, vendor daily, tampered invoice stopped off-chain) |
-| Evidence | [`docs/EVIDENCE.md`](docs/EVIDENCE.md) — every transaction hash, generated from the chain |
+| Sealed invoices | 10 envelopes, archive digest committed on chain (`qg:seal-archive:v1:19527ac1…`) |
+| Owner approval | SIWQ message verified against the on-chain ML-DSA-87 key, then paid on chain |
+| Ship Weeks | 4/4 badges (first hybrid tx, first swap in a pool, first QoreSeal key, first PQC-checking contract) |
+| Evidence | [`docs/EVIDENCE.md`](docs/EVIDENCE.md) — generated from the chain · [`docs/JUDGES.md`](docs/JUDGES.md) — a 5-minute tour |
 
 ## Why two gates
 
@@ -63,7 +72,20 @@ with a wallet.
 | The relayer is malicious | It can only submit; every payment carries the agent's own signature over `evmAuthSignBytesV2`, bound to chain, account, target, value, calldata, nonce and gas limit. |
 | A signature is replayed | The authenticator nonce is the chain's per-key counter, and every admin signature binds a monotonic `approvalNonce`. |
 
-## The four chain features this build uses
+## Beyond payments: the three other rails
+
+| Rail | What the chain records | Kit |
+| --- | --- | --- |
+| **QoreSeal archive** | Each signed invoice is encrypted to the owner's ML-KEM-1024 key (hybrid X25519 + ML-KEM envelope, bound to chain id, purpose and invoice id). Only a 32-byte digest goes on chain: `qg:seal-archive:v1:19527ac1…` in tx [`33B776A0…`](https://explore.qore.network/tx/33B776A02C703158B1F1462E68F301C9BA774E26B4BE08B24D51CA7629538E22). The owner's key is registered on chain in tx [`A32934FE…`](https://explore.qore.network/tx/A32934FED596CE21DB3B6E4C6CFCEA81F1B2F57E76B46117A19EFCE64602E86C) (ML-KEM-1024, 1568 B, read back identical). | `qorechain-qoreseal` |
+| **QoreSign approval** | An over-cap invoice (250 000 uqor against a 200 000 uqor per-tx cap) is approved by the owner as a SIWQ message — `qoreguard.approval wants you to sign in with your QoreChain account…`. The agent verifies it with `verify_siwq(require_pq=True)` against the **ML-DSA-87 key registered on chain**, then pays through `payWithApproval` ([`0C261DC9…`](https://explore.qore.network/tx/0C261DC914A9CE20D2E9DE877BCB3552FB195921AA1ACDDF274C705622163E6B)). A doubled amount, a replayed nonce or another invoice id is refused. | `qorechain-qoresign` |
+| **fUSD settlement** | A 500 fUSD invoice is paid by the agent itself on the native lane: `MsgExecuteCosmos` carries a bank send of the `erc20:0x9714…` denom, signed over the chain's `cosmos_auth_sign_bytes` digest and bounded by the same spending rule (which now lists the token denom) — tx [`3DAD3DF9…`](https://explore.qore.network/tx/3DAD3DF948B61ED87642BC476C6F79DD66A0E1F182405510EF9D1696FC028D08). The vendor's account holds the 500 fUSD afterwards. | SDK + QoreChain test tokens |
+
+The read side of the agent goes through the **`qorechain-mcp`** server
+(`agent/qoreguard/mcpread.py`): treasury views, account state and transaction
+lookups are MCP tool calls, so the same answers are available to any MCP client
+without credentials — and none of those tools can write.
+
+## The seven chain features this build uses
 
 1. **Hybrid ML-DSA-87 transactions** (`qorsdk` hybrid sign-bytes v2) for every
    owner and relayer transaction.
@@ -74,17 +96,24 @@ with a wallet.
    an `allowed_targets` list, used for the deployment and the policy setup only.
 4. **Post-quantum precompiles** — `pqcKeyStatus` (`0x…0a02`) and `pqcVerify`
    (`0x…0a01`) called from Solidity, with the empty-return-data trap handled.
+5. **ML-KEM-1024 key registry** — `msg.pqc.register_kem_key`, the key QoreSeal
+   encrypts the invoice archive to.
+6. **Native AMM** — `msg.amm.swap_exact_in` on pool 2 (fUSD/QOR), which is how
+   the demo treasury obtained its fUSD, and the pool's first swap badge.
+7. **Test tokens (fUSD)** — a real invoice settled in a test stablecoin through
+   the authenticator lane (`MsgExecuteCosmos`).
 
 ## Repository layout
 
 ```
+verify.py             read-only re-check of everything below (23 checks, no keys)
 contracts/            Foundry project: QoreGuardTreasury.sol, mocks, 23 tests
-agent/qoreguard/      Python package: chain, evm, treasury ABI, planner, agent, CLI
-demo/                 mandate.json, signed invoices, journal (evidence)
-scripts/              key bootstrap, invoice signing, demo runner
-docs/                 evidence, threat model, rubric map, submission copy
+agent/qoreguard/      chain, evm, treasury ABI, planner, agent, CLI,
+                      sealing (QoreSeal), approvals (QoreSign/SIWQ), mcpread (MCP)
+demo/                 mandate, signed invoices, journal, p1.json, sealed/ envelopes
+scripts/              key bootstrap, invoice signing, demo runners, dashboard
+docs/                 JUDGES.md, evidence, threat model, rubric map, submission copy
 AI_USAGE.md           how this was built with AI (Best AI-Native Build entry)
-docs/RUBRIC.md        where each of the five jury criteria is satisfied
 ```
 
 ## Quickstart (testnet only, no funds of value)
@@ -117,8 +146,13 @@ python -m qoreguard.cli run
 python -m qoreguard.cli approve INV-1002    # one owner-approved exception
 python -m qoreguard.cli revoke              # and one transaction to switch it off
 
-# 8. audit
-python -m qoreguard.cli verify
+# 8. the other rails
+python scripts/onchain_features.py kem      # register the owner's ML-KEM-1024 key
+python scripts/onchain_features.py swap     # one AMM swap (pool 2) for the fUSD rail
+python scripts/run_p1.py all                # seal the archive, re-link, approve, pay fUSD
+
+# 9. audit — this is the one to run first
+python verify.py
 ```
 
 `python -m qoreguard.cli status` reads everything back from the chain: account
@@ -170,7 +204,11 @@ that an approval for 0.5 QOR cannot pay 0.9 QOR.
   changes an action (see `AI_USAGE.md`).
 - The owner signs admin messages from a script in this repo. In production the
   same bytes would be signed inside QoreX, which holds the ML-DSA-87 key in the
-  Secure Enclave.
+  Secure Enclave. The same holds for the SIWQ approval: `approvals.sign()` runs
+  from the owner's mnemonic here, and in a deployment it runs in the wallet.
+- The sealed invoices are published twice on purpose: the envelopes (which need
+  the owner's ML-KEM secret key) and, for the demo only, their plaintext, so a
+  reviewer can check that opening an envelope returns the same bytes.
 
 ## Credits
 

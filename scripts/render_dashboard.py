@@ -150,6 +150,70 @@ def main() -> int:
     invoices_path = INVOICES
     invoices = json.loads(invoices_path.read_text())["invoices"] if invoices_path.exists() else []
 
+    # The second run's rails (QoreSeal archive, QoreSign approval, fUSD settlement).
+    p1_path = ROOT / "demo" / "p1.json"
+    p1 = json.loads(p1_path.read_text()) if p1_path.exists() else {}
+    sealed_path = ROOT / "demo" / "sealed" / "index.json"
+    sealed_index = json.loads(sealed_path.read_text()) if sealed_path.exists() else []
+    features_path = ROOT / "demo" / "onchain_features.json"
+    features = json.loads(features_path.read_text()) if features_path.exists() else {}
+    rails = []
+
+    if p1.get("seal"):
+        seal = p1["seal"]
+        rails.append(
+            {
+                "rail": "QoreSeal",
+                "what": f"{seal['invoices_sealed']} invoices sealed to the owner's ML-KEM-1024 key; only the digest is public".replace("{", "{{").replace("}", "}}"),
+                "detail": seal["memo"],
+                "state": "anchor verified" if seal.get("memo_matches") else "unverified",
+                "ok": bool(seal.get("memo_matches")),
+                "tx": seal["tx"],
+            }
+        )
+    if features.get("kem"):
+        kem = features["kem"]
+        rails.append(
+            {
+                "rail": "QoreSeal key",
+                "what": f"ML-KEM-1024 key registered on chain ({kem['key_len']} bytes), read back identical".replace("{", "{{").replace("}", "}}"),
+                "detail": f"key 0x{kem.get('key_hex','')[:16]}…",
+                "state": "registered" if kem.get("chain_matches") else "mismatch",
+                "ok": bool(kem.get("chain_matches")),
+                "tx": kem.get("tx", ""),
+            }
+        )
+    if p1.get("approval"):
+        ap = p1["approval"]
+        rails.append(
+            {
+                "rail": "QoreSign approval",
+                "what": (
+                    f"SIWQ approval verified against the on-chain ML-DSA-87 key; "
+                    f"paid {ap['amount_uqor']} uqor above the {ap['vendor_per_tx_cap_uqor']} uqor cap"
+                ).replace("{", "{{").replace("}", "}}"),
+                "detail": f"approval nonce {ap['approval_nonce']}",
+                "state": "PAID" if ap.get("paid") else "refused",
+                "ok": bool(ap.get("paid")),
+                "tx": ap["tx"],
+            }
+        )
+    if p1.get("token"):
+        tok = p1["token"]
+        rails.append(
+            {
+                "rail": "fUSD settlement",
+                "what": (
+                    f"{tok['amount']} fUSD paid by the agent on the native lane "
+                    f"(MsgExecuteCosmos) to the vendor's account"
+                ).replace("{", "{{").replace("}", "}}"),
+                "detail": tok["denom"][:34] + "…",
+                "state": "settled" if tok.get("paid") else "refused",
+                "ok": bool(tok.get("paid")),
+                "tx": tok["tx"],
+            }
+        )
+
     w = chain.evm_window(owner_account.replace("0x", "qor1")) if False else None
 
     html = TEMPLATE.format(
@@ -167,6 +231,9 @@ def main() -> int:
         admin_rows="".join(admin_row(a) for a in admin_events) or "<tr><td colspan='4' class='muted'>no admin events</td></tr>",
         refusal_rows="".join(refusal_row(r) for r in refusals) or "<tr><td colspan='4' class='muted'>no refusals recorded</td></tr>",
         invoice_rows="".join(invoice_row(i) for i in invoices),
+        rail_rows="".join(rail_row(x) for x in rails) or "<tr><td colspan='5' class='muted'>no extra rails recorded</td></tr>",
+        sealed_count=len(sealed_index),
+        archive_digest=(p1.get("seal", {}).get("archive_digest", "")[:16] + "…") if p1.get("seal") else "—",
         payment_count=len(payments),
         retries_note=(
             f"{retries} further attempt(s) were retried after the operator raised a gas parameter; "
@@ -241,6 +308,23 @@ def invoice_row(i: dict) -> str:
       </tr>"""
 
 
+def rail_row(x: dict) -> str:
+    cls = "ok" if x["ok"] else "bad"
+    link = (
+        f'<a href="https://explore.qore.network/tx/{x["tx"]}" target="_blank" rel="noreferrer">{x["tx"][:16]}…</a>'
+        if x["tx"]
+        else '<span class="muted">—</span>'
+    )
+    return f"""
+      <tr>
+        <td><span class="pill purple">{x['rail']}</span></td>
+        <td>{x['what']}</td>
+        <td class="mono muted">{x['detail']}</td>
+        <td><span class="pill {cls}">{x['state']}</span></td>
+        <td class="mono">{link}</td>
+      </tr>"""
+
+
 TEMPLATE = """<!doctype html>
 <html lang="en">
 <head>
@@ -302,8 +386,17 @@ TEMPLATE = """<!doctype html>
     </div>
     <div class="card"><div class="k">All-time paid</div><div class="v">{total} <small>uqor</small></div></div>
     <div class="card"><div class="k">Payments</div><div class="v">{payment_count}</div></div>
+    <div class="card"><div class="k">Sealed invoices</div><div class="v">{sealed_count} <small>ML-KEM-1024</small></div></div>
     <div class="card"><div class="k">Approval nonce</div><div class="v">{nonce} <small>PQ-signed actions</small></div></div>
   </div>
+
+  <h2>Beyond payments — the post-quantum rails</h2>
+  <table>
+    <thead><tr><th>Rail</th><th>What it does</th><th>Commitment</th><th>Result</th><th>Transaction</th></tr></thead>
+    <tbody>{rail_rows}</tbody>
+  </table>
+  <div class="sub" style="margin-top:8px">{sealed_count} sealed invoice envelopes · archive digest <span class="mono">{archive_digest}</span>
+    · <span class="mono">python verify.py</span> re-checks everything read-only, with no keys.</div>
 
   <h2>Vendors and caps</h2>
   <table>

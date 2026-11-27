@@ -48,19 +48,56 @@
   <h1>Qore<span>Guard</span> · treasury on qorechain-diana</h1>
   <div class="sub">Owner account <span class="mono addr">0x049ef52de418ddc6bce8c81ce78e89a6968e3ca3</span> ·
     contract <span class="mono addr">0xa437ca5360214d4225ab3323da8f72db99250d92</span></div>
-  <div class="sub">Read from the chain at 2026-11-26 13:50 UTC. Every number below is a view call or an event, not a local estimate.</div>
+  <div class="sub">Read from the chain at 2026-11-27 12:17 UTC. Every number below is a view call or an event, not a local estimate.</div>
 </header>
 <main>
   <div class="grid">
     <div class="card">
       <div class="k">Spent today</div>
-      <div class="v">1000000 <small>uqor of 1500000</small></div>
-      <div class="bar"><span style="width:66.7%"></span></div>
+      <div class="v">250000 <small>uqor of 1500000</small></div>
+      <div class="bar"><span style="width:16.7%"></span></div>
     </div>
-    <div class="card"><div class="k">All-time paid</div><div class="v">1000000 <small>uqor</small></div></div>
-    <div class="card"><div class="k">Payments</div><div class="v">4</div></div>
-    <div class="card"><div class="k">Approval nonce</div><div class="v">4 <small>PQ-signed actions</small></div></div>
+    <div class="card"><div class="k">All-time paid</div><div class="v">1250000 <small>uqor</small></div></div>
+    <div class="card"><div class="k">Payments</div><div class="v">6</div></div>
+    <div class="card"><div class="k">Sealed invoices</div><div class="v">10 <small>ML-KEM-1024</small></div></div>
+    <div class="card"><div class="k">Approval nonce</div><div class="v">6 <small>PQ-signed actions</small></div></div>
   </div>
+
+  <h2>Beyond payments — the post-quantum rails</h2>
+  <table>
+    <thead><tr><th>Rail</th><th>What it does</th><th>Commitment</th><th>Result</th><th>Transaction</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="pill purple">QoreSeal</span></td>
+        <td>10 invoices sealed to the owner's ML-KEM-1024 key; only the digest is public</td>
+        <td class="mono muted">qg:seal-archive:v1:19527ac1f4b4741a3af5816c3584318be8830d29</td>
+        <td><span class="pill ok">anchor verified</span></td>
+        <td class="mono"><a href="https://explore.qore.network/tx/33B776A02C703158B1F1462E68F301C9BA774E26B4BE08B24D51CA7629538E22" target="_blank" rel="noreferrer">33B776A02C703158…</a></td>
+      </tr>
+      <tr>
+        <td><span class="pill purple">QoreSeal key</span></td>
+        <td>ML-KEM-1024 key registered on chain (1568 bytes), read back identical</td>
+        <td class="mono muted">A32934FED596CE21DB3B6E4C6CFCEA81F1B2F57E76B46117A19EFCE64602E86C</td>
+        <td><span class="pill ok">registered</span></td>
+        <td class="mono"><a href="https://explore.qore.network/tx/A32934FED596CE21DB3B6E4C6CFCEA81F1B2F57E76B46117A19EFCE64602E86C" target="_blank" rel="noreferrer">A32934FED596CE21…</a></td>
+      </tr>
+      <tr>
+        <td><span class="pill purple">QoreSign approval</span></td>
+        <td>SIWQ approval verified against the on-chain ML-DSA-87 key; paid 250000 uqor above the 200000 uqor cap</td>
+        <td class="mono muted">approval nonce 5</td>
+        <td><span class="pill ok">PAID</span></td>
+        <td class="mono"><a href="https://explore.qore.network/tx/0C261DC914A9CE20D2E9DE877BCB3552FB195921AA1ACDDF274C705622163E6B" target="_blank" rel="noreferrer">0C261DC914A9CE20…</a></td>
+      </tr>
+      <tr>
+        <td><span class="pill purple">fUSD settlement</span></td>
+        <td>500 fUSD paid by the agent on the native lane (MsgExecuteCosmos) to the vendor's account</td>
+        <td class="mono muted">erc20:0x97143B771D34ddb9130b807b13…</td>
+        <td><span class="pill ok">settled</span></td>
+        <td class="mono"><a href="https://explore.qore.network/tx/3DAD3DF948B61ED87642BC476C6F79DD66A0E1F182405510EF9D1696FC028D08" target="_blank" rel="noreferrer">3DAD3DF948B61ED8…</a></td>
+      </tr></tbody>
+  </table>
+  <div class="sub" style="margin-top:8px">10 sealed invoice envelopes · archive digest <span class="mono">19527ac1f4b4741a…</span>
+    · <span class="mono">python verify.py</span> re-checks everything read-only, with no keys.</div>
 
   <h2>Vendors and caps</h2>
   <table>
@@ -70,16 +107,16 @@
         <td><span class="pill">cloud-hosting</span><span class="mono muted"> #1</span></td>
         <td class="mono">0x305e5935929844beca43ab6376226a7916a2d129</td>
         <td class="num">0.200</td>
-        <td class="num">0.250 / 1.000</td>
-        <td class="barcell"><div class="bar"><span style="width:25.0%"></span></div></td>
+        <td class="num">0.000 / 1.000</td>
+        <td class="barcell"><div class="bar"><span style="width:0.0%"></span></div></td>
         <td>active</td>
       </tr>
       <tr>
         <td><span class="pill">api-credits</span><span class="mono muted"> #2</span></td>
         <td class="mono">0xdb4a4925451fbca4183ea435ef29e4ef24fcf07d</td>
         <td class="num">0.300</td>
-        <td class="num">0.250 / 0.400</td>
-        <td class="barcell"><div class="bar"><span style="width:62.5%"></span></div></td>
+        <td class="num">0.000 / 0.400</td>
+        <td class="barcell"><div class="bar"><span style="width:0.0%"></span></div></td>
         <td>active</td>
       </tr></tbody>
   </table>
@@ -119,37 +156,29 @@
         <td class="num">0.500 QOR</td>
         <td class="mono muted">qg:v1:ee2dd8409f04965f08</td>
         <td class="mono"><a href="https://explore.qore.network/tx/8C097EC88F2DF0A4F14E7DAC0DA4574D340ED52AFDF4025FDB193CD153286F2D" target="_blank" rel="noreferrer">8C097EC88F2DF0…</a></td>
+      </tr>
+      <tr>
+        <td class="mono">INV-1012</td>
+        <td><span class="pill purple">PQ-approved</span></td>
+        <td>cloud-hosting</td>
+        <td class="num">0.250 QOR</td>
+        <td class="mono muted">qg:v1:2d2eaea904bac6117b</td>
+        <td class="mono"><a href="https://explore.qore.network/tx/0C261DC914A9CE20D2E9DE877BCB3552FB195921AA1ACDDF274C705622163E6B" target="_blank" rel="noreferrer">0C261DC914A9CE…</a></td>
+      </tr>
+      <tr>
+        <td class="mono">INV-1013</td>
+        <td><span class="pill ok">agent</span></td>
+        <td>cloud-hosting</td>
+        <td class="num">0.000 QOR</td>
+        <td class="mono muted">qg:v1:6c4b5532d6e1198404</td>
+        <td class="mono"><a href="https://explore.qore.network/tx/3DAD3DF948B61ED87642BC476C6F79DD66A0E1F182405510EF9D1696FC028D08" target="_blank" rel="noreferrer">3DAD3DF948B61E…</a></td>
       </tr></tbody>
   </table>
 
   <h2>Owner actions verified on chain (pqcVerify)</h2>
   <table>
     <thead><tr><th>Action tag</th><th class="num">Approval nonce</th><th class="num">Block</th><th>Transaction</th></tr></thead>
-    <tbody>
-      <tr>
-        <td class="mono">0xebbfed53f8d3</td>
-        <td class="num">0</td>
-        <td class="num">10791371</td>
-        <td class="mono"><a href="https://explore.qore.network/tx/0xc0abd503f0f1021c8942991727d39fd0f1143c3edea87eb32efb62736a218002" target="_blank" rel="noreferrer">0xc0abd503f0f1…</a></td>
-      </tr>
-      <tr>
-        <td class="mono">0xebbfed53f8d3</td>
-        <td class="num">1</td>
-        <td class="num">10791374</td>
-        <td class="mono"><a href="https://explore.qore.network/tx/0xdc71c2c388525c7c84732f9b333e8fd05a01ce94f0df2db7a3cd132b2a4f8ce3" target="_blank" rel="noreferrer">0xdc71c2c38852…</a></td>
-      </tr>
-      <tr>
-        <td class="mono">0x9d2615f02bbe</td>
-        <td class="num">2</td>
-        <td class="num">10791376</td>
-        <td class="mono"><a href="https://explore.qore.network/tx/0x4dfc37f3dc55a9bc0d4516cc098b4897be642385368c9fef7bab8f6b69ad180c" target="_blank" rel="noreferrer">0x4dfc37f3dc55…</a></td>
-      </tr>
-      <tr>
-        <td class="mono">0xe26df93c15bb</td>
-        <td class="num">4</td>
-        <td class="num">10791507</td>
-        <td class="mono"><a href="https://explore.qore.network/tx/0xac48abfb3669f13760f3f4a6c585dcac1b5e8c4344e56ce1a1ecb2bed732d752" target="_blank" rel="noreferrer">0xac48abfb3669…</a></td>
-      </tr></tbody>
+    <tbody><tr><td colspan='4' class='muted'>no admin events</td></tr></tbody>
   </table>
 
   <h2>Refusals (what the chain and the contract said no to)</h2>
@@ -246,6 +275,20 @@
         <td>api-credits</td>
         <td class="num">0.200 QOR</td>
         <td>API overage beyond the daily allowance</td>
+        <td><span class="pill ok">signed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">INV-1012</td>
+        <td>cloud-hosting</td>
+        <td class="num">0.250 QOR</td>
+        <td>Quarter-end capacity top-up, above the automatic cap</td>
+        <td><span class="pill ok">signed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">INV-1013</td>
+        <td>cloud-hosting</td>
+        <td class="num">0.001 QOR</td>
+        <td>Stablecoin settlement: inference credits in fUSD</td>
         <td><span class="pill ok">signed</span></td>
       </tr></tbody>
   </table>

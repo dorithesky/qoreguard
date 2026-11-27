@@ -12,8 +12,12 @@ page points each one at something a reviewer can check in under a minute.
 | The policy can only change with the owner's ML-DSA-87 signature | 8 admin actions, each an `addVendor`/`setVendorCaps`/`setTreasuryCap` call carrying a 4,627-byte signature |
 | An over-cap payment is possible only with a fresh owner signature | `payWithApproval` tx `8C097EC8…` |
 | Revocation works | `linked key is unbound or revoked` after `MsgRevokeAuthenticator` |
+| The owner approves an over-cap payment from their own device | SIWQ message verified against the on-chain ML-DSA-87 key, then `payWithApproval` tx `0C261DC9…` |
+| The agent pays a stablecoin invoice itself | `MsgExecuteCosmos` of 500 fUSD, tx `3DAD3DF9…`; the vendor's account holds it |
+| Invoices are archived encrypted | 10 envelopes sealed to the owner's ML-KEM-1024 key, archive digest on chain (`33B776A0…`) |
 
-Reproduce: `scripts/local_integration.sh` (12 checks, no network) and
+Reproduce: **`python verify.py`** (23 read-only checks against the live chain, no
+keys needed), `scripts/local_integration.sh` (12 checks, no network) and
 `python -m qoreguard.cli run`.
 
 ## 2. QoreChain technology used, verified in repo and on chain — 25%
@@ -26,6 +30,14 @@ Reproduce: `scripts/local_integration.sh` (12 checks, no network) and
 | Scoped EVM window | three `MsgOpenEVMWindow` txs, one of them with `allowed_targets = [treasury]` only |
 | Post-quantum precompiles | `QoreGuardTreasury.sol` calls `pqcKeyStatus` (`0x…0a02`) and `pqcVerify` (`0x…0a01`), with the empty-return-data trap handled |
 | Multi-message transaction | `link` sends the rule and the registration in one owner-signed transaction |
+| ML-KEM-1024 key registry | `msg.pqc.register_kem_key` (`A32934FE…`), key read back byte-identical; the archive is sealed to it |
+| Native AMM | `msg.amm.swap_exact_in` on pool 2 (`F41B2712…`) — the treasury's fUSD came from the pool |
+| Test tokens (fUSD) | a token invoice settled through the authenticator lane; the rule's `allowed_denoms` lists the denom |
+| QoreChain MCP | `agent/qoreguard/mcpread.py` reads treasury views and accounts through `qorechain-mcp` over stdio |
+| Sign In With QoreChain | `agent/qoreguard/approvals.py`, verified with `verify_siwq(require_pq=True)` against the on-chain key |
+
+Kits: `qorechain-sdk`, `qorechain-qoreseal`, `qorechain-qoresign`,
+`qorechain-mcp`, plus Foundry for the contract. Ship Weeks: 4/4 badges.
 
 ## 3. Post-quantum correctness and security — 20%
 
@@ -56,4 +68,6 @@ or touch another protocol.
 - `demo/qoreguard-demo.mp4`: 2:08 captioned walkthrough, every number copied from
   the deployment record and the journal.
 - `docs/EVIDENCE.md`: generated from the chain, one row per transaction.
+- `docs/JUDGES.md`: the five-minute tour — run `verify.py`, read what is on
+  chain, then try to break it.
 - `docs/SUBMISSION.md`: paste-ready submission text.

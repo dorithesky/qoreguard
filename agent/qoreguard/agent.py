@@ -24,7 +24,7 @@ from typing import Any
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from qorsdk import derive_native_account, derive_pqc_canonical, pqc_sign
-from qorsdk.authenticator import execute_evm_msg
+from qorsdk.authenticator import cosmos_auth_sign_bytes, execute_cosmos_msg, execute_evm_msg
 
 from . import accounts as acct_mod
 from . import treasury as T
@@ -247,6 +247,94 @@ class Agent:
                 "vendor_id": vendor_id,
                 "vendor_label": vendor_label,
                 "amount_uqor": amount_uqor,
+                "memo": memo,
+                "onchain_memo": intent.onchain_memo,
+                "intent": asdict(intent),
+                "intent_signature": intent_sig.hex(),
+                "auth_nonce": nonce,
+                "auth_signature": auth_sig.hex(),
+                "auth_digest": digest.hex(),
+                "tx_hash": decision.tx_hash,
+                "chain_success": decision.chain_success,
+                "chain_reason": decision.chain_reason,
+            }
+        )
+        return decision
+
+    # ------------------------------------------------------------------ #
+    # One token payment (the stablecoin rail)
+    # ------------------------------------------------------------------ #
+    def pay_token(
+        self,
+        vendor_id: int,
+        vendor_label: str,
+        amount: int,
+        denom: str,
+        to_address: str,
+        memo: str,
+    ) -> Decision:
+        """Pay one invoice in an on-chain test token (fUSD) through the same
+        linked agent key, bounded by the same spending rule.
+
+        The EVM treasury contract forwards native QOR, so a token invoice takes
+        the native lane: `MsgExecuteCosmos` carries a bank send of the token
+        denom, signed by the agent's ed25519 key over the chain's own
+        `cosmos_auth_sign_bytes` digest. The chain checks the rule's
+        `allowed_denoms` and per-transaction limit before it moves anything; the
+        contract is not in this path and does not need to be.
+        """
+        nonce = self.chain.auth_nonce(self.owner.cosmos, self.pubkey).nonce
+        intent = self.build_intent(vendor_id, vendor_label, amount, memo)
+        intent_sig = self._sign_intent(intent)
+
+        coin = f"{amount}{denom}"
+        digest = cosmos_auth_sign_bytes(
+            self.cfg.chain_id, self.owner.cosmos, self.pubkey, to_address, coin, nonce
+        )
+        auth_sig = self.key.sign(digest)
+        msg = execute_cosmos_msg(
+            relayer=self.relayer.address,
+            account=self.owner.cosmos,
+            scheme="ed25519",
+            pubkey=self.pubkey,
+            signature=auth_sig,
+            to=to_address,
+            amount=coin,
+            nonce=nonce,
+        )
+        outcome = self.chain.send_hybrid(
+            self.relayer, self.relayer_pqc, [msg], memo=intent.onchain_memo
+        )
+
+        decision = Decision(
+            invoice_id=memo.split(" ")[0] if memo else "",
+            vendor_id=vendor_id,
+            vendor_label=vendor_label,
+            amount_uqor=amount,
+            memo=memo,
+            action="pay_token",
+            reason="within mandate",
+            intent=intent,
+            intent_signature=intent_sig.hex(),
+            tx_hash=outcome.tx_hash,
+        )
+        if outcome.code != 0:
+            decision.chain_success = False
+            decision.chain_reason = f"tx rejected: {outcome.raw_log}"
+        else:
+            decision.chain_success = True
+            decision.chain_reason = None
+
+        self.journal.append(
+            {
+                "kind": "token_payment",
+                "action": "pay_token",
+                "invoice": decision.invoice_id,
+                "vendor_id": vendor_id,
+                "vendor_label": vendor_label,
+                "amount": amount,
+                "denom": denom,
+                "to": to_address,
                 "memo": memo,
                 "onchain_memo": intent.onchain_memo,
                 "intent": asdict(intent),

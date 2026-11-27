@@ -72,6 +72,25 @@
       "due": "2026-12-02",
       "signer_pubkey": "3ef5cf095faf81e195343fe669f9b36079f35b2be6d22933fad60c37929841d4",
       "signature": "312948c5ac322d3686b76c9deca5749025daa6bcd604fa546c3b66248a543d6cb958ff923c0570d749642e67bdec96777864c864a0de7fe25c8b436c28b8a20c"
+    },
+    {
+      "id": "INV-1012",
+      "vendor": "cloud-hosting",
+      "amount_uqor": 250000,
+      "memo": "Quarter-end capacity top-up, above the automatic cap",
+      "due": "2026-12-01",
+      "signer_pubkey": "d25a14eb5aa5c6d97cafeb8b53fe0b3ddf753eb887770158263d8661531fcae2",
+      "signature": "500c350615fdf531d6c379bde1af4788706acdfdc9e1c273ddcbe0d2969079e9b8d74006741de020e2ce0d1b89373ddc8ad1420c10af72fd1bab3b827add950c"
+    },
+    {
+      "id": "INV-1013",
+      "vendor": "cloud-hosting",
+      "amount_uqor": 500,
+      "memo": "Stablecoin settlement: inference credits in fUSD",
+      "due": "2026-12-02",
+      "denom": "erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA",
+      "signer_pubkey": "d25a14eb5aa5c6d97cafeb8b53fe0b3ddf753eb887770158263d8661531fcae2",
+      "signature": "a9fe6ad388ce14e89f024ae42daf987a62e8b694b52b35c1d07ce56555e1aed4a858107b6d9c0f3930bc44b9b7ed1fd40b587011d3b6ad8011ce848a53a9c901"
     }
   ]
 }

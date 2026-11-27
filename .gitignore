@@ -6,9 +6,14 @@
 
 # build artifacts
 node_modules/
-out/
+contracts/out/*
 cache/
 lib/
+# ...except the compiled treasury artifact: verify.py compares the deployed
+# bytecode against it without needing Foundry.
+!contracts/out/QoreGuardTreasury.sol/
+contracts/out/QoreGuardTreasury.sol/*
+!contracts/out/QoreGuardTreasury.sol/QoreGuardTreasury.json
 __pycache__/
 *.pyc
 .venv/

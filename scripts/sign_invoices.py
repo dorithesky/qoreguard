@@ -43,16 +43,18 @@ def vendor_key(label: str) -> tuple[Ed25519PrivateKey, bytes]:
 
 
 def canonical(invoice: dict) -> bytes:
-    return "|".join(
-        [
-            "QoreGuard.invoice.v1",
-            invoice["id"],
-            invoice["vendor"],
-            str(invoice["amount_uqor"]),
-            invoice["memo"],
-            invoice.get("due", ""),
-        ]
-    ).encode()
+    parts = [
+        "QoreGuard.invoice.v1",
+        invoice["id"],
+        invoice["vendor"],
+        str(invoice["amount_uqor"]),
+        invoice["memo"],
+        invoice.get("due", ""),
+    ]
+    # Token invoices sign their denom as well (see qoreguard/planner.py).
+    if invoice.get("denom"):
+        parts.append(invoice["denom"])
+    return "|".join(parts).encode()
 
 
 def main() -> None:

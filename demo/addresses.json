@@ -1,0 +1,44 @@
+{
+  "chain_id": "qorechain-diana",
+  "rest": "https://api-testnet.qore.host",
+  "evm_rpc": "https://evm-testnet.qore.host",
+  "evm_chain_id": 9800,
+  "owner": {
+    "bech32": "qor1qj002t0yrrwud08geqww0r5f56tgu09rqjxqcd",
+    "evm": "0x049Ef52DE418DDC6Bce8c81ce78E89A6968e3Ca3"
+  },
+  "relayer": {
+    "bech32": "qor1zcsp7xup7y08czmc9z563x0qk3q6sm5827ftf8",
+    "evm": "0x16201f1b81f11e7c0b7828a9a899e0b441a86e87"
+  },
+  "contract": "0xa437ca5360214d4225ab3323da8f72db99250d92",
+  "deploy_tx": "0x3fc7c4e5c1f3175a10d47d8b4bb997c06d4208de5e9e080ae3c8188ca3114078",
+  "vendors": [
+    {
+      "id": 1,
+      "label": "cloud-hosting",
+      "payee": "0x305e5935929844bECA43aB6376226a7916A2d129",
+      "per_tx_cap_uqor": 200000,
+      "daily_cap_uqor": 1000000,
+      "token_account": "qor1vd3kshzcvqkr238arazyelvjurm87mnjlr02d0"
+    },
+    {
+      "id": 2,
+      "label": "api-credits",
+      "payee": "0xdB4a4925451FbCa4183Ea435ef29E4EF24fCF07D",
+      "per_tx_cap_uqor": 300000,
+      "daily_cap_uqor": 400000,
+      "token_account": "",
+      "note": "daily cap lowered from 600000 to 400000 by an owner-signed (ML-DSA-87) setVendorCaps"
+    }
+  ],
+  "vendor_accounts": {
+    "cloud-hosting": "qor1vd3kshzcvqkr238arazyelvjurm87mnjlr02d0",
+    "api-credits": "qor1ttpjt064dwu32huksecp26exs04lesvf4fhxds"
+  },
+  "token": {
+    "denom": "erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA",
+    "symbol": "fUSD"
+  },
+  "policy_checked_at": "2026-11-27T12:20:00Z"
+}

@@ -1,0 +1,207 @@
+{
+  "approval": {
+    "amount_uqor": 250000,
+    "approval_nonce": 5,
+    "chain_key_len": 2592,
+    "chain_reason": null,
+    "checked_at": "2026-11-27T12:13:23Z",
+    "intent_memo": "qg:v1:2d2eaea904bac6117b6215477332dc4858201844",
+    "invoice": "INV-1012",
+    "negatives": {
+      "amount changed after approval": "refused: QoreSignError",
+      "replayed under another nonce": "refused: SIWQ_NONCE_MISMATCH"
+    },
+    "paid": true,
+    "sealed_envelope_sha256": "74372051073fb833555cb64104997b016f60351b6cac792cb7d929bf4bdfec30",
+    "sealed_memo": "seal:v1:74372051073fb833555cb64104997b016f60351b",
+    "siwq_message": "qoreguard.approval wants you to sign in with your QoreChain account:\nqor1qj002t0yrrwud08geqww0r5f56tgu09rqjxqcd\n\nApprove INV-1012: pay vendor 1 (cloud-hosting) 250000 uqor, treasury approval nonce 5\n\nURI: qorechain:qoreguard.approval\nVersion: 1\nChain ID: qorechain-diana\nNonce: apprdcdc8509e248\nIssued At: 2026-11-27T12:13:18Z\nExpiration Time: 2026-11-27T12:28:18Z",
+    "siwq_signature": "{\"signatureType\":\"ml-dsa-87-hybrid\",\"classical\":{\"keyType\":\"eth_secp256k1\",\"publicKey\":\"Agk6hO5d4dbBdA6hzDhXapHUyR4g5sj7pxuUG56AUVfc\",\"signature\":\"OGDmlVeBdDE1KIAtpb3/1Cdc11pLoE/es0+pIAjiZMBM1X5P7pZztl9duk02AmAEXU4DO7p3yWVUYjm8XrOvRg==\"},\"pq\":{\"algorithmId\":1,\"signature\":\"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\"}}",
+    "siwq_verified_against_chain_key": {
+      "address": "qor1qj002t0yrrwud08geqww0r5f56tgu09rqjxqcd",
+      "expiration_time": "2026-11-27T12:28:18Z",
+      "issued_at": "2026-11-27T12:13:18Z",
+      "nonce": "apprdcdc8509e248",
+      "statement": "Approve INV-1012: pay vendor 1 (cloud-hosting) 250000 uqor, treasury approval nonce 5"
+    },
+    "tx": "0C261DC914A9CE20D2E9DE877BCB3552FB195921AA1ACDDF274C705622163E6B",
+    "vendor": "cloud-hosting",
+    "vendor_id": 1,
+    "vendor_per_tx_cap_uqor": 200000
+  },
+  "link": {
+    "agent_pubkey": "0826816f3544d021525b3fc78dde132ca94fe7aa916b422a8c9b11501cde9450",
+    "allowed_denoms": [
+      "uqor",
+      "erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA"
+    ],
+    "checked_at": "2026-11-27T12:13:11Z",
+    "code": 0,
+    "daily_limit_uqor": 1500000,
+    "linked": true,
+    "log": "",
+    "nonce": 9,
+    "per_tx_limit_uqor": 600000,
+    "permissions": [
+      "send",
+      "evm"
+    ],
+    "tx": "1D11682380E79C065DDC7B886538BCFDA945E3C47E7D6BE927C92576DC96D867"
+  },
+  "seal": {
+    "archive_digest": "19527ac1f4b4741a3af5816c3584318be8830d2907fbc65d772dc697cc3adc40",
+    "checked_at": "2026-11-27T12:12:57Z",
+    "code": 0,
+    "invoices_sealed": 10,
+    "memo": "qg:seal-archive:v1:19527ac1f4b4741a3af5816c3584318be8830d29",
+    "memo_matches": true,
+    "memo_read_back": "qg:seal-archive:v1:19527ac1f4b4741a3af5816c3584318be8830d29",
+    "sealed": [
+      {
+        "envelope": "/workspace/qorechain-qday/demo/sealed/INV-1001.sealed",
+        "envelope_len": 2060,
+        "envelope_sha256": "bf140f73d5fda56cc4ea36a3436fbee2a5fe3acff011a2588d0bda9246263525",
+        "invoice_id": "INV-1001",
+        "memo_commitment": "seal:v1:bf140f73d5fda56cc4ea36a3436fbee2a5fe3acf",
+        "plaintext_sha256": "5c904c5c007355f6a9010eb41c6e3929fd0f34cee8950c60138e6276d6987a42",
+        "roundtrip": {
+          "matches_plaintext": true,
+          "opened_sha256": "5c904c5c007355f6a9010eb41c6e3929fd0f34cee8950c60138e6276d6987a42",
+          "wrong_key_refused": true
+        }
+      },
+      {
+        "envelope": "/workspace/qorechain-qday/demo/sealed/INV-1002.sealed",
+        "envelope_len": 2076,
+        "envelope_sha256": "af9a3629abacd15ec8633a6681a42be48fe21c0118c5a021122c73b0a1939ff6",
+        "invoice_id": "INV-1002",
+        "memo_commitment": "seal:v1:af9a3629abacd15ec8633a6681a42be48fe21c01",
+        "plaintext_sha256": "18b9a1b968c4a791e14545a95ed86f0077aeac84b5e9d75deb420a7cac665597",
+        "roundtrip": {
+          "matches_plaintext": true,
+          "opened_sha256": "18b9a1b968c4a791e14545a95ed86f0077aeac84b5e9d75deb420a7cac665597",
+          "wrong_key_refused": true
+        }
+      },
+      {
+        "envelope": "/workspace/qorechain-qday/demo/sealed/INV-1003.sealed",
+        "envelope_len": 2074,
+        "envelope_sha256": "9dfa63f5d86cc65198dd7f5f592edd78b3a29da3c98cdd38045779caa2262011",
+        "invoice_id": "INV-1003",
+        "memo_commitment": "seal:v1:9dfa63f5d86cc65198dd7f5f592edd78b3a29da3",
+        "plaintext_sha256": "b882e7a7da3f6174454da85e6704012ea37afc4bcb043334200f0395c1b0637f",
+        "roundtrip": {
+          "matches_plaintext": true,
+          "opened_sha256": "b882e7a7da3f6174454da85e6704012ea37afc4bcb043334200f0395c1b0637f",
+          "wrong_key_refused": true
+        }
+      },
+      {
+        "envelope": "/workspace/qorechain-qday/demo/sealed/INV-1004.sealed",
+        "envelope_len": 2052,
+        "envelope_sha256": "9a9a9975c2139984650a536c755701cefbd69fbf5f3cfe43fa6e0a8881cb6b2d",
+        "invoice_id": "INV-1004",
+        "memo_commitment": "seal:v1:9a9a9975c2139984650a536c755701cefbd69fbf",
+        "plaintext_sha256": "4e184c2e431051e54d42f4599b835e01abf76dcc1044bcb23fa5201d655fa917",
+        "roundtrip": {
+          "matches_plaintext": true,
+          "opened_sha256": "4e184c2e431051e54d42f4599b835e01abf76dcc1044bcb23fa5201d655fa917",
+          "wrong_key_refused": true
+        }
+      },
+      {
+        "envelope": "/workspace/qorechain-qday/demo/sealed/INV-1006.sealed",
+        "envelope_len": 2055,
+        "envelope_sha256": "111421aad89acd16919a9ceece8e5179b08d0ec9c6499c87709b774d688ef454",
+        "invoice_id": "INV-1006",
+        "memo_commitment": "seal:v1:111421aad89acd16919a9ceece8e5179b08d0ec9",
+        "plaintext_sha256": "9e1a40b15e0b765d2487121d0b67a7c30083bc309916b76b82a3d2623f97d9b4",
+        "roundtrip": {
+          "matches_plaintext": true,
+          "opened_sha256": "9e1a40b15e0b765d2487121d0b67a7c30083bc309916b76b82a3d2623f97d9b4",
+          "wrong_key_refused": true
+        }
+      },
+      {
+        "envelope": "/workspace/qorechain-qday/demo/sealed/INV-1007.sealed",
+        "envelope_len": 2069,
+        "envelope_sha256": "a04a1de9262318a783ef531341287ac70e14c619f06ccc4fcf56a666370466ea",
+        "invoice_id": "INV-1007",
+        "memo_commitment": "seal:v1:a04a1de9262318a783ef531341287ac70e14c619",
+        "plaintext_sha256": "99e685f52196421b70c29f44066f1edefa22e3be9914fcaea0a3838587c6d861",
+        "roundtrip": {
+          "matches_plaintext": true,
+          "opened_sha256": "99e685f52196421b70c29f44066f1edefa22e3be9914fcaea0a3838587c6d861",
+          "wrong_key_refused": true
+        }
+      },
+      {
+        "envelope": "/workspace/qorechain-qday/demo/sealed/INV-1008.sealed",
+        "envelope_len": 2143,
+        "envelope_sha256": "ccff8fa326e40d182f25efe07b2fc1e12b674423ae7feedf90086ee964810d80",
+        "invoice_id": "INV-1008",
+        "memo_commitment": "seal:v1:ccff8fa326e40d182f25efe07b2fc1e12b674423",
+        "plaintext_sha256": "ff1d872bf9f3d4715e90d9838b41ffeba862b8939002fe5caa8437eafbe49d56",
+        "roundtrip": {
+          "matches_plaintext": true,
+          "opened_sha256": "ff1d872bf9f3d4715e90d9838b41ffeba862b8939002fe5caa8437eafbe49d56",
+          "wrong_key_refused": true
+        }
+      },
+      {
+        "envelope": "/workspace/qorechain-qday/demo/sealed/INV-1009.sealed",
+        "envelope_len": 2074,
+        "envelope_sha256": "6c38eff00da55aeab75c4a2c6c09a11efb25aea7d17e809aa0493be088f623de",
+        "invoice_id": "INV-1009",
+        "memo_commitment": "seal:v1:6c38eff00da55aeab75c4a2c6c09a11efb25aea7",
+        "plaintext_sha256": "4648540839669a8dbceb0c48f7b14a18c4135cf7addf891126198a0d322c7911",
+        "roundtrip": {
+          "matches_plaintext": true,
+          "opened_sha256": "4648540839669a8dbceb0c48f7b14a18c4135cf7addf891126198a0d322c7911",
+          "wrong_key_refused": true
+        }
+      },
+      {
+        "envelope": "/workspace/qorechain-qday/demo/sealed/INV-1012.sealed",
+        "envelope_len": 2090,
+        "envelope_sha256": "74372051073fb833555cb64104997b016f60351b6cac792cb7d929bf4bdfec30",
+        "invoice_id": "INV-1012",
+        "memo_commitment": "seal:v1:74372051073fb833555cb64104997b016f60351b",
+        "plaintext_sha256": "6188c0848a258e2662e7284bc164e78aca9ddd311a714374a2c2c70cbfb1dd60",
+        "roundtrip": {
+          "matches_plaintext": true,
+          "opened_sha256": "6188c0848a258e2662e7284bc164e78aca9ddd311a714374a2c2c70cbfb1dd60",
+          "wrong_key_refused": true
+        }
+      },
+      {
+        "envelope": "/workspace/qorechain-qday/demo/sealed/INV-1013.sealed",
+        "envelope_len": 2142,
+        "envelope_sha256": "687b7d1929c0fc566c4d3ecd949c7e47578293ad0c0e42c680f313b9b2371d84",
+        "invoice_id": "INV-1013",
+        "memo_commitment": "seal:v1:687b7d1929c0fc566c4d3ecd949c7e47578293ad",
+        "plaintext_sha256": "603c357c4f8d69d01c8c633b989d6661959cbf80c86f50a677270959f87a8dcb",
+        "roundtrip": {
+          "matches_plaintext": true,
+          "opened_sha256": "603c357c4f8d69d01c8c633b989d6661959cbf80c86f50a677270959f87a8dcb",
+          "wrong_key_refused": true
+        }
+      }
+    ],
+    "tx": "33B776A02C703158B1F1462E68F301C9BA774E26B4BE08B24D51CA7629538E22"
+  },
+  "token": {
+    "amount": 500,
+    "chain_reason": null,
+    "checked_at": "2026-11-27T12:13:35Z",
+    "denom": "erc20:0x97143B771D34ddb9130b807b135Ae675A5a963CA",
+    "invoice": "INV-1013",
+    "owner_fusd_after": 381,
+    "owner_fusd_before": 881,
+    "paid": true,
+    "sealed_envelope_sha256": "687b7d1929c0fc566c4d3ecd949c7e47578293ad0c0e42c680f313b9b2371d84",
+    "to": "qor1vd3kshzcvqkr238arazyelvjurm87mnjlr02d0",
+    "tx": "3DAD3DF948B61ED87642BC476C6F79DD66A0E1F182405510EF9D1696FC028D08",
+    "vendor": "cloud-hosting",
+    "vendor_fusd_after": 500
+  }
+}

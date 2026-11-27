@@ -12,7 +12,8 @@
       "invoice_pubkey": "d25a14eb5aa5c6d97cafeb8b53fe0b3ddf753eb887770158263d8661531fcae2",
       "per_tx_cap_uqor": 200000,
       "daily_cap_uqor": 1000000,
-      "note": "Primary hosting invoice, monthly."
+      "note": "Primary hosting invoice, monthly. Token invoices are paid to `token_account`.",
+      "token_account": "qor1vd3kshzcvqkr238arazyelvjurm87mnjlr02d0"
     },
     {
       "id": 2,

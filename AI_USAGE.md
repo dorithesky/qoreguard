@@ -58,8 +58,10 @@ holding the keys that matter.
 - `contracts/src/QoreGuardTreasury.sol` (~380 lines) and its mocks.
 - `contracts/test/*.sol`: 23 tests, all passing.
 - `agent/qoreguard/`: configuration, chain wrapper, EVM client, ABI encoder,
-  planner, agent, CLI (~1,200 lines).
-- `scripts/`: key bootstrap, invoice signing, demo runner.
+  planner, agent, CLI, plus the three rails — `sealing.py` (QoreSeal),
+  `approvals.py` (QoreSign/SIWQ) and `mcpread.py` (QoreChain MCP) (~1,700 lines).
+- `verify.py`: 23 read-only checks a judge can run without a key.
+- `scripts/`: key bootstrap, invoice signing, demo runners, dashboard, evidence.
 - All documentation, the threat model and the submission text.
 
 ## 4. Where the AI was wrong, and how it was caught
@@ -93,6 +95,26 @@ Concrete failures from this build, kept because they are the honest part:
   `gas_limit` has to fit inside the gas the enclosing transaction provisions, and
   a 4.6 KB signature leaves less room than expected. The two retries stay in
   `demo/journal.jsonl` and are labelled as operational retries, not refusals.
+- **Two libraries, two key types, one name.** `qorsdk` returns a `PqcKeypair`
+  (bytes only) and `qoresign` wants its own `PqKeyPair`; passing the first to
+  `sign_siwq` raised `'PqcKeypair' object has no attribute 'algorithm_id'`. The
+  fix was to derive the signing key with `qoresign.derive_canonical_pq_key` and
+  *assert on chain* that it equals the registered key — which is now also a
+  check in `verify.py`.
+- **Bytes that differ are not always a mismatch.** The first bytecode check
+  failed on a correct deployment: Solidity 0.8.24 substitutes the immutable
+  `ownerAccount` into four sites in the runtime code. The check now requires that
+  every differing region is exactly 20 bytes and exactly the owner's address —
+  stricter than "same length", and truer.
+- **A read helper that took a URL.** `fetch_kem_key` wants a REST client, not an
+  `httpx.Client`; the first call died with `Request URL is missing an 'http://'`.
+  Small, but it is the kind of thing a judge would hit, so the fix went into the
+  script rather than into a local workaround.
+- **The MCP server speaks stdio, not HTTP.** `qorechain-mcp` is a stdio MCP
+  server; the read layer had to open a session, initialize it and call tools
+  through it. That took an afternoon of mismatched transports before
+  `agent/qoreguard/mcpread.py` worked — and the payoff is that every number in
+  the dashboard can be re-read by any MCP client.
 - **A mock that did not bind the message.** The first `MockPQCVerify` accepted any
   signature with a magic byte, which made "an approval for 0.5 QOR cannot pay
   0.9 QOR" untestable. Rewritten to `0x01 || message`, so the mock also binds.
