@@ -95,7 +95,7 @@ without credentials — and none of those tools can write.
 | Surface | What it does | Why it is not a mock |
 | --- | --- | --- |
 | [`web/lab.html`](https://dorithesky.github.io/qoreguard/web/lab.html) | seven refusal experiments, each an `eth_call` from the page: over-cap, unknown vendor, forged ML-DSA-87 signature, memo ≠ value, stale approval nonce, a non-owner sender, a one-byte signature | the page holds **no key**; the revert comes back from the deployed contract, decoded by selector |
-| [`web/qorex.html`](https://dorithesky.github.io/qoreguard/web/qorex.html) | `window.qorex.native.signArbitrary(chainId, address, data)` for a QoreX wallet, then `verifyMessageWithChain` — the browser verifies an ML-DSA-87 signature against the key the chain holds | the key is read from the `pqcKeyStatus` precompile (`0x…0a02`) that the contract itself calls, and one changed byte is refused in the page |
+| [`web/qorex.html`](https://dorithesky.github.io/qoreguard/web/qorex.html) | detects QoreX with `@qorechain/qorex-types`, reads the account and its on-chain ML-DSA-87 status with `native.getKey`, asks the wallet to sign, and verifies any signature with `verifyMessageWithChain` | the key is read from the `pqcKeyStatus` precompile (`0x…0a02`) that the contract itself calls; one changed byte is refused; and the wallet's refusal of `signArbitrary` is reported verbatim rather than papered over |
 
 Neither page can sign, so neither can move money. They exist to make the
 refusals and the post-quantum check something a reviewer can watch rather than
@@ -243,13 +243,16 @@ that an approval for 0.5 QOR cannot pay 0.9 QOR.
 - The agent's planner is deterministic; the optional LLM annotation never
   changes an action (see `AI_USAGE.md`).
 - The owner signs admin messages from a script in this repo. `web/qorex.html`
-  implements the production path — `window.qorex.native.signArbitrary` plus
-  `verifyMessageWithChain` — but no QoreX wallet was installed in the browser we
-  built it in, so the page cannot demonstrate the *signing* half there; it
-  verifies a real recorded signature, and refuses a changed byte, in the page.
-  The recorded signature was made by `scripts/qorex_console.py` with the owner's
-  hybrid key over exactly the bytes the page displays
-  (`demo/qorex-console.json`), in the same wire format the wallet produces.
+  shows the wallet half as far as the wallet goes: `@qorechain/qorex-types`
+  detects QoreX, `native.getKey` reads the account and its on-chain key status,
+  and `native.signArbitrary` is called — but **QoreX's current build refuses
+  `signArbitrary`** ("not yet supported" before any prompt; the kit types it as
+  `Promise<never>`), and the page reports that answer verbatim. What the page
+  *does* prove live is the verification half: a real hybrid signature over
+  exactly the bytes it displays (`demo/qorex-console.json`, made by
+  `scripts/qorex_console.py` in the wire format `qoresign.signMessage` produces)
+  verifies against the key the chain holds, and a changed byte does not. No
+  QoreX wallet was installed in the browser this was built in either.
 - The sealed invoices are published twice on purpose: the envelopes (which need
   the owner's ML-KEM secret key) and, for the demo only, their plaintext, so a
   reviewer can check that opening an envelope returns the same bytes.

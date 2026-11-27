@@ -10,7 +10,8 @@
     "test": "node scripts/test_web.mjs"
   },
   "dependencies": {
-    "@qorechain/qoresign": "0.2.0"
+    "@qorechain/qoresign": "0.2.0",
+    "@qorechain/qorex-types": "0.1.0"
   },
   "devDependencies": {
     "esbuild": "^0.24.0"

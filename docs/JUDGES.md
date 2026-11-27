@@ -53,7 +53,7 @@ exact contract source.
 | [web/lab.html](https://dorithesky.github.io/qoreguard/web/lab.html) | **Run all seven** | seven `eth_call`s, each refused by the deployed contract with its own error: `PerVendorTxCapExceeded`, `UnknownVendor`, `BadPqcSignature`, `ValueMismatch`, `StaleApprovalNonce`, `NotOwnerAccount`, `BadPqcSignature` |
 | web/lab.html | **Verify the recorded signature** | the owner's 215-byte message verifies in your browser against the ML-DSA-87 key the chain holds; **Verify a copy with one byte changed** is refused |
 | [web/qorex.html](https://dorithesky.github.io/qoreguard/web/qorex.html) | **Verify the recorded owner signature** | `verifyMessageWithChain` from `@qorechain/qoresign/network`, over the key read from the `pqcKeyStatus` precompile |
-| web/qorex.html | **Connect QoreX** | the production signing path: `window.qorex.native.signArbitrary`. Enabled only if a QoreX wallet is installed in your browser |
+| web/qorex.html | **Connect QoreX** | detects QoreX with `@qorechain/qorex-types`, then `native.enable` + `native.getKey` reads your account and its on-chain ML-DSA-87 status. **Ask QoreX to sign** reports the wallet's own answer: today's build refuses `signArbitrary` before any prompt, and the page says so instead of hiding it |
 
 The pages hold no key and send no transaction, which is why they can only ask.
 
@@ -128,11 +128,11 @@ change the policy? ──► fresh ML-DSA-87 signature ──► pqcVerify(0x…
   mainnet today; everything here is on `qorechain-diana`.
 - Amounts are test amounts (0.1–0.7 QOR, 500 fUSD). Nothing has value.
 - The owner's keys live in `.keys/` (gitignored, mode 600) for the demo. The
-  production path is `web/qorex.html` (`window.qorex.native.signArbitrary` +
-  `verifyMessageWithChain`); no QoreX wallet was installed in the browser this
-  was built in, so the page demonstrates the verification half live and leaves
-  the signing buttons disabled, with the recorded signature in
-  `demo/qorex-console.json` as the reference.
+  wallet path is `web/qorex.html`, which detects QoreX and reads the account
+  through `@qorechain/qorex-types`; QoreX's current build refuses
+  `signArbitrary`, so the page demonstrates the verification half live (a real
+  recorded hybrid signature, and a changed byte refused) and reports the
+  wallet's refusal for the signing half as the wallet words it.
 - The demo also publishes the plaintext of the sealed invoices so you can check
   that opening an envelope returns the same bytes. In production only the
   envelopes exist.

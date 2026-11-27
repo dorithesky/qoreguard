@@ -13,5 +13,10 @@ Rebuild it with:
     export * from "@qorechain/qoresign";
     JS
 
-The bundle is byte-for-byte what `package.json` pins; `scripts/build_web.py`
-does not modify it.
+`qorex-types.js` is the same treatment for `@qorechain/qorex-types` 0.1.0
+(QoreX detection helpers: `getQorexNative`, `isQorexInstalled`,
+`hasCapability`), which `web/qorex.html` uses to find the wallet and read the
+account.
+
+Both bundles are byte-for-byte what `package.json` pins; `scripts/build_web.py`
+does not modify them.

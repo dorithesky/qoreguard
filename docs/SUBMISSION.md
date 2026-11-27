@@ -77,8 +77,10 @@ revoked`; and a Q-Day check where the owner's classical key submits a
 **What a reviewer can press.** `web/lab.html` runs seven refusals in the browser
 as `eth_call`s — the page holds no key, so it can only ask and be refused — and
 verifies the owner's recorded ML-DSA-87 signature against the key the chain
-holds. `web/qorex.html` is the production signing path
-(`window.qorex.native.signArbitrary` + `verifyMessageWithChain`). The contract
+holds. `web/qorex.html` is the wallet path: `@qorechain/qorex-types` detects
+QoreX and reads the account and its on-chain key status with `native.getKey`,
+`verifyMessageWithChain` verifies a real hybrid signature in the page, and the
+wallet's current refusal of `signArbitrary` is reported verbatim. The contract
 carries 51 Foundry tests, 13 invariants over an 8-action handler, 100 % line /
 statement / branch / function coverage and 19/19 killed mutants; a QoreScan CBOM
 with DORA and NIS2 mappings sits in `docs/`; and a daily GitHub Actions run
